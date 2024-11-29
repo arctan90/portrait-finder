@@ -73,8 +73,13 @@ class VideoFrontalDetectorNode:
         
         # 检查躯干是否正对相机
         nose = landmarks[self.mp_pose.PoseLandmark.NOSE]
-        mid_hip = landmarks[self.mp_pose.PoseLandmark.MID_HIP]
-        vertical_alignment = abs(nose.x - mid_hip.x)
+        # 使用左右臀部的中点代替 MID_HIP
+        left_hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP]
+        right_hip = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]
+        mid_hip_x = (left_hip.x + right_hip.x) / 2
+        
+        # 计算垂直对齐度
+        vertical_alignment = abs(nose.x - mid_hip_x)
         
         # 计算总体置信度
         confidence = (1.0 - shoulder_diff) * (1.0 - vertical_alignment) * 100
