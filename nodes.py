@@ -30,7 +30,7 @@ class VideoFrontalDetectorNode:
     
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "process"
-    CATEGORY = "视频处理"
+    CATEGORY = "video/frontal"
 
     def is_frontal_pose(self, results):
         if not results.pose_landmarks:
