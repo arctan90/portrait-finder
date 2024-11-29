@@ -18,10 +18,7 @@ class VideoFrontalDetectorNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "video_path": ("STRING", {
-                    "default": "",
-                    "multiline": False
-                }),
+                "video": ("VIDEO",),
                 "confidence_threshold": ("FLOAT", {
                     "default": 80.0,
                     "min": 0.0,
@@ -31,7 +28,7 @@ class VideoFrontalDetectorNode:
             },
         }
     
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("VIDEO",)
     FUNCTION = "process"
     CATEGORY = "视频处理"
 
@@ -72,47 +69,43 @@ class VideoFrontalDetectorNode:
         confidence = detection.score[0] * (1.0 - abs(aspect_ratio - 0.75)) * 100
         return confidence
 
-    def process(self, video_path, confidence_threshold):
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            raise ValueError("无法打开视频文件")
+    def process(self, video, confidence_threshold):
+        if not video or len(video) == 0:
+            raise ValueError("输入视频为空")
         
-        best_frame = None
-        best_confidence = 0
-        
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+        try:
+            best_frame = None
+            best_confidence = 0
             
-            # 转换颜色空间
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # 检测姿态和人脸
-            pose_results = self.pose.process(frame_rgb)
-            face_results = self.face_detection.process(frame_rgb)
-            
-            # 计算置信度
-            pose_confidence = self.is_frontal_pose(pose_results)
-            face_confidence = self.is_frontal_face(face_results)
-            
-            # 综合置信度
-            total_confidence = min(pose_confidence, face_confidence)
-            
-            # 更新最佳帧
-            if total_confidence > best_confidence:
-                best_confidence = total_confidence
-                best_frame = frame_rgb
+            for frame in video:
+                # 转换颜色空间
+                frame_rgb = frame
                 
-            # 如果达到阈值则提前结束
-            if best_confidence >= confidence_threshold:
-                break
-        
-        cap.release()
-        
-        if best_frame is None:
-            raise ValueError("未能找到符合条件的帧")
+                # 检测姿态和人脸
+                pose_results = self.pose.process(frame_rgb)
+                face_results = self.face_detection.process(frame_rgb)
+                
+                # 计算置信度
+                pose_confidence = self.is_frontal_pose(pose_results)
+                face_confidence = self.is_frontal_face(face_results)
+                
+                # 综合置信度
+                total_confidence = min(pose_confidence, face_confidence)
+                
+                # 更新最佳帧
+                if total_confidence > best_confidence:
+                    best_confidence = total_confidence
+                    best_frame = frame_rgb
+                    
+                # 如果达到阈值则提前结束
+                if best_confidence >= confidence_threshold:
+                    break
             
-        # 转换为 ComfyUI 期望的格式 (H, W, C) -> (B, H, W, C)
-        best_frame = np.expand_dims(best_frame, axis=0)
-        return (best_frame,) 
+            if best_frame is None:
+                raise ValueError("未能找到符合条件的帧")
+                
+            # 转换为 ComfyUI 期望的格式 (H, W, C) -> (B, H, W, C)
+            best_frame = np.expand_dims(best_frame, axis=0)
+            return ([best_frame],) 
+        except Exception as e:
+            raise ValueError(f"处理视频时出错: {str(e)}") 
