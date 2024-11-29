@@ -120,17 +120,21 @@ class VideoFrontalDetectorNode:
             best_confidence = 0
             frame_count = 0
             
+            print(f"开始处理视频: {video}")
+            print(f"置信度阈值: {confidence_threshold}")
+            print(f"帧跳过间隔: {frame_skip}")
+            
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
                     
-                # 按 frame_skip 跳过帧
                 frame_count += 1
                 if frame_count % frame_skip != 0:
                     continue
                     
-                # 转换颜色空间
+                print(f"\n处理第 {frame_count} 帧:")
+                
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 # 检测姿态和人脸
@@ -141,26 +145,38 @@ class VideoFrontalDetectorNode:
                 pose_confidence = self.is_frontal_pose(pose_results)
                 face_confidence = self.is_frontal_face(face_results)
                 
+                # 打印详细的置信度信息
+                print(f"  姿态置信度: {pose_confidence:.2f}%")
+                print(f"  人脸置信度: {face_confidence:.2f}%")
+                
                 # 综合置信度
                 total_confidence = min(pose_confidence, face_confidence)
+                print(f"  综合置信度: {total_confidence:.2f}%")
                 
                 # 更新最佳帧
                 if total_confidence > best_confidence:
                     best_confidence = total_confidence
                     best_frame = frame_rgb
-                    
+                    print(f"  >>> 更新最佳帧，当前最佳置信度: {best_confidence:.2f}%")
+                
                 # 如果达到阈值则提前结束
                 if best_confidence >= confidence_threshold:
+                    print(f"\n已达到置信度阈值，提前结束处理")
                     break
             
             cap.release()
             
             if best_frame is None:
                 raise ValueError("未能找到符合条件的帧")
-                
+            
+            print(f"\n处理完成:")
+            print(f"总共处理帧数: {frame_count}")
+            print(f"最终最佳置信度: {best_confidence:.2f}%")
+            
             return (best_frame,)
             
         except Exception as e:
+            print(f"\n处理出错: {str(e)}")
             raise ValueError(f"处理视频时出错: {str(e)}")
         
     @classmethod
