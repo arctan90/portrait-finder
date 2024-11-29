@@ -139,11 +139,13 @@ class VideoFrontalDetectorNode:
             # 构建完整的视频路径
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
-                raise ValueError(f"找不到视频文件: {video}")
+                print(f"警告: 找不到视频文件: {video}")
+                return (np.zeros((512, 512, 3), dtype=np.uint8),)  # 返回黑色图像
 
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
-                raise ValueError(f"无法打开视频文件: {video}")
+                print(f"警告: 无法打开视频文件: {video}")
+                return (np.zeros((512, 512, 3), dtype=np.uint8),)  # 返回黑色图像
 
             best_frame = None
             best_confidence = 0
@@ -196,7 +198,19 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if best_frame is None:
-                raise ValueError("未能找到符合条件的帧")
+                print(f"警告: 未能找到符合条件的帧")
+                # 获取视频的第一帧的尺寸，如果无法获取则使用默认尺寸
+                cap = cv2.VideoCapture(video_path)
+                ret, first_frame = cap.read()
+                cap.release()
+                
+                if ret:
+                    h, w = first_frame.shape[:2]
+                    empty_frame = np.zeros((h, w, 3), dtype=np.uint8)
+                else:
+                    empty_frame = np.zeros((512, 512, 3), dtype=np.uint8)
+                
+                return (empty_frame,)
             
             print(f"\n处理完成:")
             print(f"总共处理帧数: {frame_count}")
@@ -206,7 +220,8 @@ class VideoFrontalDetectorNode:
             
         except Exception as e:
             print(f"\n处理出错: {str(e)}")
-            raise ValueError(f"处理视频时出错: {str(e)}")
+            # 返回黑色图像而不是抛出异常
+            return (np.zeros((512, 512, 3), dtype=np.uint8),)
         
     @classmethod
     def VALIDATE_INPUTS(cls, video, confidence_threshold, frame_skip):
