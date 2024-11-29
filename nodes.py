@@ -48,6 +48,9 @@ class VideoFrontalDetectorNode:
                     "max": 100,
                     "step": 1
                 }),
+                "test_first_frame": ("BOOLEAN", {  # 添加测试开关
+                    "default": True,
+                }),
             },
         }
     
@@ -135,7 +138,10 @@ class VideoFrontalDetectorNode:
         
         return confidence
 
-    def process(self, video, confidence_threshold, frame_skip):
+    def process(self, video, confidence_threshold, frame_skip, test_first_frame=False):
+        if test_first_frame:
+            return self.process_first_frame(video, confidence_threshold, frame_skip)
+        
         try:
             # 添加视频预览
             self.preview_video(video)
@@ -274,6 +280,49 @@ class VideoFrontalDetectorNode:
                 "height": 300  # 可以调整视频播放器的高度
             }
         return None
+    
+    def process_first_frame(self, video, confidence_threshold, frame_skip):
+        """仅处理第一帧的测试方法"""
+        try:
+            # 构建完整的视频路径
+            video_path = os.path.join(folder_paths.get_input_directory(), video)
+            if not os.path.isfile(video_path):
+                print(f"警告: 找不到视频文件: {video}")
+                return (torch.zeros((512, 512, 3)).float(),)
+
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                print(f"警告: 无法打开视频文件: {video}")
+                return (torch.zeros((512, 512, 3)).float(),)
+
+            print(f"\n开始处理视频第一帧: {video}")
+            
+            # 只读取第一帧
+            ret, frame = cap.read()
+            cap.release()
+            
+            if not ret:
+                print("无法读取视频帧")
+                return (torch.zeros((512, 512, 3)).float(),)
+            
+            # 打印原始帧的信息
+            print(f"原始帧大小: {frame.shape}")
+            print(f"帧数据类型: {frame.dtype}")
+            print(f"帧数值范围: [{frame.min()}, {frame.max()}]")
+            
+            # 转换颜色空间
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # 转换为 PyTorch 张量
+            frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
+            print(f"转换后张量大小: {frame_tensor.shape}")
+            print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
+            
+            return (frame_tensor,)
+                
+        except Exception as e:
+            print(f"\n处理出错: {str(e)}")
+            return (torch.zeros((512, 512, 3)).float(),)
     
 def calculate_file_hash(filename: str, hash_every_n: int = 1):
     #Larger video files were taking >.5 seconds to hash even when cached,
