@@ -3,6 +3,7 @@ import mediapipe as mp
 import numpy as np
 import os
 import folder_paths
+import hashlib
 
 # 定义支持的视频格式
 VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'webm']
@@ -48,6 +49,13 @@ class VideoFrontalDetectorNode:
             },
         }
     
+    # 添加 WIDGETS 定义
+    @classmethod
+    def WIDGETS(cls):
+        return {
+            "video": ("videoplayer", {"format": VIDEO_EXTENSIONS}),
+        }
+    
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "process"
     CATEGORY = "video/frontal"
@@ -91,6 +99,9 @@ class VideoFrontalDetectorNode:
 
     def process(self, video, confidence_threshold, frame_skip):
         try:
+            # 添加视频预览
+            self.preview_video(video)
+            
             # 构建完整的视频路径
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
@@ -146,3 +157,55 @@ class VideoFrontalDetectorNode:
             
         except Exception as e:
             raise ValueError(f"处理视频时出错: {str(e)}")
+        
+    @classmethod
+    def VALIDATE_INPUTS(cls, video, confidence_threshold, frame_skip):
+        # 验证视频文件
+        if not folder_paths.exists_annotated_filepath(video):
+            return f"无效的视频文件: {video}"
+        
+        # 验证置信度阈值
+        if not (0 <= confidence_threshold <= 100):
+            return f"置信度阈值必须在 0-100 之间，当前值: {confidence_threshold}"
+        
+        # 验证帧跳过参数
+        if frame_skip < 1:
+            return f"帧跳过参数必须大于 0，当前值: {frame_skip}"
+        
+        return True
+    
+    @classmethod
+    def IS_CHANGED(cls, video, confidence_threshold, frame_skip):
+        # 获取视频文件的完整路径
+        video_path = folder_paths.get_annotated_filepath(video)
+        if not video_path:
+            return ""
+        
+        # 将所有参数都纳入考虑
+        m = hashlib.sha256()
+        m.update(str(os.path.getmtime(video_path)).encode())  # 文件修改时间
+        m.update(str(confidence_threshold).encode())           # 置信度阈值
+        m.update(str(frame_skip).encode())                    # 帧跳过参数
+        
+        return m.hexdigest()
+    
+    # 添加视频预览方法
+    def preview_video(self, video):
+        video_path = os.path.join(folder_paths.get_input_directory(), video)
+        if os.path.exists(video_path):
+            return {
+                "widget": "videoplayer",
+                "src": f"file={video_path}",
+                "width": 400,  # 可以调整视频播放器的宽度
+                "height": 300  # 可以调整视频播放器的高度
+            }
+        return None
+    
+def calculate_file_hash(filename: str, hash_every_n: int = 1):
+    #Larger video files were taking >.5 seconds to hash even when cached,
+    #so instead the modified time from the filesystem is used as a hash
+    h = hashlib.sha256()
+    h.update(filename.encode())
+    h.update(str(os.path.getmtime(filename)).encode())
+    return h.hexdigest()
+
