@@ -96,32 +96,38 @@ class VideoFrontalDetectorNode:
         # 获取人脸框的关键点
         bbox = best_detection.location_data.relative_bounding_box
         
-        # 计算人脸框的宽高比（调整理想宽高比范围）
+        # 计算人脸框的宽高比
         aspect_ratio = bbox.width / bbox.height
-        ideal_ratio = 0.8  # 调整理想宽高比
-        ratio_tolerance = 0.3  # 增加容差范围
+        ideal_ratio = 0.8  # 理想宽高比
+        ratio_tolerance = 0.8  # 增大容差范围
         
-        # 计算宽高比的偏差程度（0-1，越小越好）
-        ratio_diff = min(abs(aspect_ratio - ideal_ratio) / ratio_tolerance, 1.0)
+        # 计算宽高比的得分（使用更宽松的评分方式）
+        ratio_diff = abs(aspect_ratio - ideal_ratio) / ideal_ratio
+        ratio_score = max(0, 1.0 - (ratio_diff / ratio_tolerance))
         
-        # 根据以下因素计算正脸程度：
-        # 1. 检测置信度
-        # 2. 宽高比符合度
-        # 3. 人脸大小（避免太小的人脸）
-        face_size_score = min((bbox.width * bbox.height * 4), 1.0)  # 人脸大小得分
+        # 调整人脸大小得分计算
+        face_area = bbox.width * bbox.height
+        min_face_area = 0.01  # 最小可接受的人脸区域（相对于图像）
+        face_size_score = min(face_area / min_face_area, 1.0)
+        
+        # 计算最终置信度（调整各项权重）
+        detection_weight = 0.5    # 检测置信度权重
+        ratio_weight = 0.3       # 宽高比权重
+        size_weight = 0.2        # 大小权重
         
         confidence = (
-            best_detection.score[0] *  # 检测置信度
-            (1.0 - ratio_diff) *       # 宽高比符合度
-            face_size_score *          # 人脸大小得分
-            100                        # 转换为百分比
+            (best_detection.score[0] * detection_weight +  # 检测置信度
+             ratio_score * ratio_weight +                 # 宽高比得分
+             face_size_score * size_weight) *            # 人脸大小得分
+            100                                          # 转换为百分比
         )
         
         print(f"    人脸检测详情:")
-        print(f"      检测置信度: {best_detection.score[0]*100:.2f}%")
+        print(f"      检测置信度: {best_detection.score[0]*100:.2f}% (权重: {detection_weight})")
         print(f"      宽高比: {aspect_ratio:.2f} (理想: {ideal_ratio})")
-        print(f"      宽高比得分: {(1.0-ratio_diff)*100:.2f}%")
-        print(f"      人脸大小得分: {face_size_score*100:.2f}%")
+        print(f"      宽高比得分: {ratio_score*100:.2f}% (权重: {ratio_weight})")
+        print(f"      人脸大小得分: {face_size_score*100:.2f}% (权重: {size_weight})")
+        print(f"      人脸区域占比: {face_area*100:.2f}%")
         
         return confidence
 
