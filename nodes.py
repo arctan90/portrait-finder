@@ -17,7 +17,8 @@ class VideoFrontalDetectorNode:
             min_detection_confidence=0.5
         )
         self.face_detection = self.mp_face.FaceDetection(
-            min_detection_confidence=0.5
+            min_detection_confidence=0.3,
+            model_selection=1
         )
     
     @classmethod
@@ -89,17 +90,39 @@ class VideoFrontalDetectorNode:
         if not results.detections:
             return 0.0
         
-        # 获取第一个检测到的人脸
-        detection = results.detections[0]
+        # 获取所有检测到的人脸中置信度最高的
+        best_detection = max(results.detections, key=lambda x: x.score[0])
         
         # 获取人脸框的关键点
-        bbox = detection.location_data.relative_bounding_box
+        bbox = best_detection.location_data.relative_bounding_box
         
-        # 计算人脸框的宽高比
+        # 计算人脸框的宽高比（调整理想宽高比范围）
         aspect_ratio = bbox.width / bbox.height
+        ideal_ratio = 0.8  # 调整理想宽高比
+        ratio_tolerance = 0.3  # 增加容差范围
         
-        # 根据宽高比和置信度计算正脸程度
-        confidence = detection.score[0] * (1.0 - abs(aspect_ratio - 0.75)) * 100
+        # 计算宽高比的偏差程度（0-1，越小越好）
+        ratio_diff = min(abs(aspect_ratio - ideal_ratio) / ratio_tolerance, 1.0)
+        
+        # 根据以下因素计算正脸程度：
+        # 1. 检测置信度
+        # 2. 宽高比符合度
+        # 3. 人脸大小（避免太小的人脸）
+        face_size_score = min((bbox.width * bbox.height * 4), 1.0)  # 人脸大小得分
+        
+        confidence = (
+            best_detection.score[0] *  # 检测置信度
+            (1.0 - ratio_diff) *       # 宽高比符合度
+            face_size_score *          # 人脸大小得分
+            100                        # 转换为百分比
+        )
+        
+        print(f"    人脸检测详情:")
+        print(f"      检测置信度: {best_detection.score[0]*100:.2f}%")
+        print(f"      宽高比: {aspect_ratio:.2f} (理想: {ideal_ratio})")
+        print(f"      宽高比得分: {(1.0-ratio_diff)*100:.2f}%")
+        print(f"      人脸大小得分: {face_size_score*100:.2f}%")
+        
         return confidence
 
     def process(self, video, confidence_threshold, frame_skip):
