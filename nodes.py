@@ -28,7 +28,7 @@ class VideoFrontalDetectorNode:
             },
         }
     
-    RETURN_TYPES = ("VIDEO",)
+    RETURN_TYPES = ("IMAGE",)
     FUNCTION = "process"
     CATEGORY = "视频处理"
 
@@ -104,8 +104,7 @@ class VideoFrontalDetectorNode:
             if best_frame is None:
                 raise ValueError("未能找到符合条件的帧")
                 
-            # 转换为 ComfyUI 期望的格式 (H, W, C) -> (B, H, W, C)
-            best_frame = np.expand_dims(best_frame, axis=0)
-            return ([best_frame],) 
+            # 直接返回找到的最佳帧
+            return (best_frame,)  # 返回单帧图像
         except Exception as e:
             raise ValueError(f"处理视频时出错: {str(e)}") 
