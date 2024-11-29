@@ -17,15 +17,9 @@ class VideoFrontalDetectorNode:
     
     @classmethod
     def INPUT_TYPES(cls):
-        # 获取 ComfyUI 的 input 目录
-        input_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'input')
-        # 获取支持的视频文件
-        video_files = [f for f in os.listdir(input_dir) if f.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))]
-        
         return {
             "required": {
-                "video": ("VIDEO",),  # 用于上传视频
-                "video_file": (video_files, ),  # 用于选择已有视频文件
+                "video": ("LOAD_VIDEO",),  # 改为 LOAD_VIDEO 类型，这样会显示上传按钮
                 "confidence_threshold": ("FLOAT", {
                     "default": 80.0,
                     "min": 0.0,
@@ -33,12 +27,6 @@ class VideoFrontalDetectorNode:
                     "step": 0.1
                 }),
             },
-            "optional": {
-                "use_uploaded_video": ("BOOLEAN", {
-                    "default": True,
-                    "label": "使用上传的视频"
-                }),
-            }
         }
     
     RETURN_TYPES = ("IMAGE",)
@@ -82,44 +70,19 @@ class VideoFrontalDetectorNode:
         confidence = detection.score[0] * (1.0 - abs(aspect_ratio - 0.75)) * 100
         return confidence
 
-    def process(self, video, video_file, confidence_threshold, use_uploaded_video=True):
+    def process(self, video, confidence_threshold):
         try:
-            if use_uploaded_video:
-                # 使用上传的视频
-                input_video = video
-            else:
-                # 使用选择的视频文件
-                input_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'input')
-                video_path = os.path.join(input_dir, video_file)
-                
-                # 读取视频文件
-                cap = cv2.VideoCapture(video_path)
-                if not cap.isOpened():
-                    raise ValueError(f"无法打开视频文件: {video_path}")
-                
-                # 将视频转换为帧列表
-                input_video = []
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    input_video.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                cap.release()
-                
-                if not input_video:
-                    raise ValueError("视频文件为空")
+            if not video:
+                raise ValueError("请上传视频文件")
 
-            # 其余处理逻辑保持不变
+            # 处理视频
             best_frame = None
             best_confidence = 0
             
-            for frame in input_video:
-                # 转换颜色空间
-                frame_rgb = frame
-                
+            for frame in video:
                 # 检测姿态和人脸
-                pose_results = self.pose.process(frame_rgb)
-                face_results = self.face_detection.process(frame_rgb)
+                pose_results = self.pose.process(frame)
+                face_results = self.face_detection.process(frame)
                 
                 # 计算置信度
                 pose_confidence = self.is_frontal_pose(pose_results)
@@ -131,7 +94,7 @@ class VideoFrontalDetectorNode:
                 # 更新最佳帧
                 if total_confidence > best_confidence:
                     best_confidence = total_confidence
-                    best_frame = frame_rgb
+                    best_frame = frame
                     
                 # 如果达到阈值则提前结束
                 if best_confidence >= confidence_threshold:
