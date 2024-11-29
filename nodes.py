@@ -87,7 +87,22 @@ class VideoFrontalDetectorNode:
         vertical_alignment = abs(nose.x - mid_hip_x)
         
         # 计算总体置信度
-        confidence = (1.0 - shoulder_diff) * (1.0 - vertical_alignment) * 100
+        shoulder_score = (1.0 - shoulder_diff) * 100
+        vertical_score = (1.0 - vertical_alignment) * 100
+        confidence = min(shoulder_score, vertical_score)
+        
+        # 打印详细信息
+        print(f"    姿态检测详情:")
+        print(f"      左肩位置: ({left_shoulder.x:.3f}, {left_shoulder.y:.3f}, {left_shoulder.z:.3f})")
+        print(f"      右肩位置: ({right_shoulder.x:.3f}, {right_shoulder.y:.3f}, {right_shoulder.z:.3f})")
+        print(f"      肩膀深度差异: {shoulder_diff:.3f}")
+        print(f"      肩膀对齐得分: {shoulder_score:.2f}%")
+        print(f"      鼻子位置: ({nose.x:.3f}, {nose.y:.3f})")
+        print(f"      躯干中点: ({mid_hip_x:.3f}, {(left_hip.y + right_hip.y)/2:.3f})")
+        print(f"      垂直对齐偏差: {vertical_alignment:.3f}")
+        print(f"      垂直对齐得分: {vertical_score:.2f}%")
+        print(f"      最终姿态得分: {confidence:.2f}%")
+        
         return confidence
 
     def is_frontal_face(self, results):
@@ -131,7 +146,6 @@ class VideoFrontalDetectorNode:
         print(f"      人脸框宽度: {bbox.width:.4f}")
         print(f"      人脸框高度: {bbox.height:.4f}")
         print(f"      宽高比(w/h): {aspect_ratio:.2f} (理想: {ideal_ratio})")
-        print(f"      高宽比(h/w): {(bbox.height/bbox.width):.2f}")
         print(f"      宽高比得分: {ratio_score*100:.2f}% (权重: {ratio_weight})")
         print(f"      人脸大小得分: {face_size_score*100:.2f}% (权重: {size_weight})")
         print(f"      人脸区域占比: {face_area*100:.2f}%")
@@ -177,8 +191,7 @@ class VideoFrontalDetectorNode:
                 print(f"警告: 无法打开视频文件: {video}")
                 return (self.get_empty_frame(video_path),)
 
-            best_frame = None
-            best_confidence = 0
+            found_frame = None
             frame_count = 0
             
             print(f"开始处理视频: {video}")
@@ -208,25 +221,23 @@ class VideoFrontalDetectorNode:
                 
                 print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
                 
-                if total_confidence > best_confidence:
-                    best_confidence = total_confidence
-                    best_frame = frame_rgb
-                
-                if best_confidence >= confidence_threshold:
+                # 如果找到符合条件的帧，立即停止
+                if total_confidence >= confidence_threshold:
+                    found_frame = frame_rgb
+                    print(f"找到符合条件的帧，置信度: {total_confidence:.2f}%")
                     break
             
             cap.release()
             
-            # 如果没找到合适的帧，返回与原视频相同分辨率的空图像
-            if best_frame is None:
+            # 如果没找到合适的帧，返回空图像
+            if found_frame is None:
                 print("未找到符合条件的帧，返回空图像")
                 return (self.get_empty_frame(video_path),)
             
-            # 返回找到的最佳帧
-            print(f"找到最佳帧，置信度: {best_confidence:.2f}%")
-            best_frame_tensor = torch.from_numpy(best_frame).float() / 255.0
-            return (best_frame_tensor,)
-            
+            # 返回找到的帧
+            frame_tensor = torch.from_numpy(found_frame).float() / 255.0
+            return (frame_tensor,)
+                
         except Exception as e:
             print(f"处理出错: {str(e)}")
             return (self.get_empty_frame(video_path),)
@@ -270,7 +281,7 @@ class VideoFrontalDetectorNode:
                 "widget": "videoplayer",
                 "src": f"file={video_path}",
                 "width": 400,  # 可以调整视频播放器的宽度
-                "height": 300  # 可以调整视频播放器的高度
+                "height": 300  # 可以调整视播放器的高度
             }
         return None
     
