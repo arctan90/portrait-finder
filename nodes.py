@@ -4,6 +4,7 @@ import numpy as np
 import os
 import folder_paths
 import hashlib
+import torch  # 添加这行导入
 
 # 定义支持的视频格式
 VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'webm']
@@ -97,7 +98,7 @@ class VideoFrontalDetectorNode:
         bbox = best_detection.location_data.relative_bounding_box
         
         # 计算人脸框的宽高比
-        aspect_ratio = bbox.width / bbox.height
+        aspect_ratio = bbox.width / bbox.height  # 可能需要调整为 height/width
         ideal_ratio = 0.8  # 理想宽高比
         ratio_tolerance = 0.8  # 增大容差范围
         
@@ -124,7 +125,10 @@ class VideoFrontalDetectorNode:
         
         print(f"    人脸检测详情:")
         print(f"      检测置信度: {best_detection.score[0]*100:.2f}% (权重: {detection_weight})")
-        print(f"      宽高比: {aspect_ratio:.2f} (理想: {ideal_ratio})")
+        print(f"      人脸框宽度: {bbox.width:.4f}")
+        print(f"      人脸框高度: {bbox.height:.4f}")
+        print(f"      宽高比(w/h): {aspect_ratio:.2f} (理想: {ideal_ratio})")
+        print(f"      高宽比(h/w): {(bbox.height/bbox.width):.2f}")
         print(f"      宽高比得分: {ratio_score*100:.2f}% (权重: {ratio_weight})")
         print(f"      人脸大小得分: {face_size_score*100:.2f}% (权重: {size_weight})")
         print(f"      人脸区域占比: {face_area*100:.2f}%")
@@ -199,7 +203,7 @@ class VideoFrontalDetectorNode:
             
             if best_frame is None:
                 print(f"警告: 未能找到符合条件的帧")
-                # 获取视频的第一帧的尺寸，如果无法获取则使用默认尺寸
+                # 创建空图像并转换为 PyTorch 张量
                 cap = cv2.VideoCapture(video_path)
                 ret, first_frame = cap.read()
                 cap.release()
@@ -210,18 +214,23 @@ class VideoFrontalDetectorNode:
                 else:
                     empty_frame = np.zeros((512, 512, 3), dtype=np.uint8)
                 
-                return (empty_frame,)
+                # 转换为 PyTorch 张量
+                empty_tensor = torch.from_numpy(empty_frame).float() / 255.0
+                return (empty_tensor,)
             
             print(f"\n处理完成:")
             print(f"总共处理帧数: {frame_count}")
             print(f"最终最佳置信度: {best_confidence:.2f}%")
             
-            return (best_frame,)
+            # 将最佳帧转换为 PyTorch 张量
+            best_frame_tensor = torch.from_numpy(best_frame).float() / 255.0
+            return (best_frame_tensor,)
             
         except Exception as e:
             print(f"\n处理出错: {str(e)}")
-            # 返回黑色图像而不是抛出异常
-            return (np.zeros((512, 512, 3), dtype=np.uint8),)
+            # 返回黑色图像并转换为 PyTorch 张量
+            empty_tensor = torch.zeros((512, 512, 3)).float()
+            return (empty_tensor,)
         
     @classmethod
     def VALIDATE_INPUTS(cls, video, confidence_threshold, frame_skip):
