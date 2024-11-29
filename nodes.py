@@ -138,24 +138,44 @@ class VideoFrontalDetectorNode:
         
         return confidence
 
+    def get_empty_frame(self, video_path):
+        """获取与视频相同分辨率的空图像"""
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                return torch.zeros((512, 512, 3)).float()  # 默认尺寸作为后备
+            
+            # 读取第一帧以获取尺寸
+            ret, frame = cap.read()
+            cap.release()
+            
+            if not ret:
+                return torch.zeros((512, 512, 3)).float()  # 默认尺寸作为后备
+            
+            # 创建与原视频相同分辨率的空图像
+            # 注意：需要考虑旋转后的尺寸
+            h, w = frame.shape[:2]
+            empty_frame = np.zeros((w, h, 3), dtype=np.uint8)  # 交换宽高以匹配旋转后的尺寸
+            return torch.from_numpy(empty_frame).float()
+            
+        except Exception as e:
+            print(f"创建空图像时出错: {str(e)}")
+            return torch.zeros((512, 512, 3)).float()  # 默认尺寸作为后备
+
     def process(self, video, confidence_threshold, frame_skip, test_first_frame=False):
         if test_first_frame:
             return self.process_first_frame(video, confidence_threshold, frame_skip)
         
         try:
-            # 添加视频预览
-            self.preview_video(video)
-            
-            # 构建完整的视频路径
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
                 print(f"警告: 找不到视频文件: {video}")
-                return (np.zeros((512, 512, 3), dtype=np.uint8),)  # 返回黑色图像
+                return (self.get_empty_frame(video_path),)
 
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 print(f"警告: 无法打开视频文件: {video}")
-                return (np.zeros((512, 512, 3), dtype=np.uint8),)  # 返回黑色图像
+                return (self.get_empty_frame(video_path),)
 
             best_frame = None
             best_confidence = 0
@@ -163,7 +183,6 @@ class VideoFrontalDetectorNode:
             
             print(f"开始处理视频: {video}")
             print(f"置信度阈值: {confidence_threshold}")
-            print(f"帧跳过间隔: {frame_skip}")
             
             while True:
                 ret, frame = cap.read()
@@ -174,70 +193,44 @@ class VideoFrontalDetectorNode:
                 if frame_count % frame_skip != 0:
                     continue
                     
-                print(f"\n处理第 {frame_count} 帧:")
-                
+                # 旋转和处理图像
+                frame = cv2.transpose(frame)
+                frame = cv2.flip(frame, 1)
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 # 检测姿态和人脸
                 pose_results = self.pose.process(frame_rgb)
                 face_results = self.face_detection.process(frame_rgb)
                 
-                # 计算置信度
                 pose_confidence = self.is_frontal_pose(pose_results)
                 face_confidence = self.is_frontal_face(face_results)
-                
-                # 打印详细的置信度信息
-                print(f"  姿态置信度: {pose_confidence:.2f}%")
-                print(f"  人脸置信度: {face_confidence:.2f}%")
-                
-                # 综合置信度
                 total_confidence = min(pose_confidence, face_confidence)
-                print(f"  综合置信度: {total_confidence:.2f}%")
                 
-                # 更新最佳帧
+                print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
+                
                 if total_confidence > best_confidence:
                     best_confidence = total_confidence
                     best_frame = frame_rgb
-                    print(f"  >>> 更新最佳帧，当前最佳置信度: {best_confidence:.2f}%")
                 
-                # 如果达到阈值则提前结束
                 if best_confidence >= confidence_threshold:
-                    print(f"\n已达到置信度阈值，提前结束处理")
                     break
             
             cap.release()
             
+            # 如果没找到合适的帧，返回与原视频相同分辨率的空图像
             if best_frame is None:
-                print(f"警告: 未能找到符合条件的帧")
-                # 创建空图像并转换为 PyTorch 张量
-                cap = cv2.VideoCapture(video_path)
-                ret, first_frame = cap.read()
-                cap.release()
-                
-                if ret:
-                    h, w = first_frame.shape[:2]
-                    empty_frame = np.zeros((h, w, 3), dtype=np.uint8)
-                else:
-                    empty_frame = np.zeros((512, 512, 3), dtype=np.uint8)
-                
-                # 转换为 PyTorch 张量
-                empty_tensor = torch.from_numpy(empty_frame).float() / 255.0
-                return (empty_tensor,)
+                print("未找到符合条件的帧，返回空图像")
+                return (self.get_empty_frame(video_path),)
             
-            print(f"\n处理完成:")
-            print(f"总共处理帧数: {frame_count}")
-            print(f"最终最佳置信度: {best_confidence:.2f}%")
-            
-            # 将最佳帧转换为 PyTorch 张量
+            # 返回找到的最佳帧
+            print(f"找到最佳帧，置信度: {best_confidence:.2f}%")
             best_frame_tensor = torch.from_numpy(best_frame).float() / 255.0
             return (best_frame_tensor,)
             
         except Exception as e:
-            print(f"\n处理出错: {str(e)}")
-            # 返回黑色图像并转换为 PyTorch 张量
-            empty_tensor = torch.zeros((512, 512, 3)).float()
-            return (empty_tensor,)
-        
+            print(f"处理出错: {str(e)}")
+            return (self.get_empty_frame(video_path),)
+    
     @classmethod
     def VALIDATE_INPUTS(cls, video, confidence_threshold, frame_skip):
         # 验证视频文件
@@ -284,45 +277,42 @@ class VideoFrontalDetectorNode:
     def process_first_frame(self, video, confidence_threshold, frame_skip):
         """仅处理第一帧的测试方法"""
         try:
-            # 构建完整的视频路径
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
                 print(f"警告: 找不到视频文件: {video}")
-                return (torch.zeros((512, 512, 3)).float(),)
+                return (self.get_empty_frame(video_path),)
 
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 print(f"警告: 无法打开视频文件: {video}")
-                return (torch.zeros((512, 512, 3)).float(),)
+                return (self.get_empty_frame(video_path),)
 
-            print(f"\n开始处理视频第一帧: {video}")
+            print(f"\n读取视频第一帧: {video}")
             
-            # 只读取第一帧
+            # 读取第一帧
             ret, frame = cap.read()
             cap.release()
             
             if not ret:
                 print("无法读取视频帧")
-                return (torch.zeros((512, 512, 3)).float(),)
+                return (self.get_empty_frame(video_path),)
             
             # 打印原始帧的信息
             print(f"原始帧大小: {frame.shape}")
-            print(f"帧数据类型: {frame.dtype}")
-            print(f"帧数值范围: [{frame.min()}, {frame.max()}]")
             
-            # 转换颜色空间
+            # 旋转图像以匹配原始视频方向
+            frame = cv2.transpose(frame)
+            frame = cv2.flip(frame, 1)
+            print(f"旋转后帧大小: {frame.shape}")
+            
+            # 转换颜色空间并返回
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # 转换为 PyTorch 张量
             frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-            print(f"转换后张量大小: {frame_tensor.shape}")
-            print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
-            
             return (frame_tensor,)
                 
         except Exception as e:
             print(f"\n处理出错: {str(e)}")
-            return (torch.zeros((512, 512, 3)).float(),)
+            return (self.get_empty_frame(video_path),)
     
 def calculate_file_hash(filename: str, hash_every_n: int = 1):
     #Larger video files were taking >.5 seconds to hash even when cached,
