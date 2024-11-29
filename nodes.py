@@ -2,6 +2,10 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import os
+import folder_paths
+
+# 定义支持的视频格式
+VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'webm']
 
 class VideoFrontalDetectorNode:
     def __init__(self):
@@ -17,14 +21,29 @@ class VideoFrontalDetectorNode:
     
     @classmethod
     def INPUT_TYPES(cls):
+        # 获取 input 目录中的视频文件
+        input_dir = folder_paths.get_input_directory()
+        video_files = []
+        for f in os.listdir(input_dir):
+            if os.path.isfile(os.path.join(input_dir, f)):
+                ext = f.split('.')[-1].lower()
+                if ext in VIDEO_EXTENSIONS:
+                    video_files.append(f)
+                    
         return {
             "required": {
-                "video": ("LOAD_VIDEO",),  # 改为 LOAD_VIDEO 类型，这样会显示上传按钮
+                "video": (sorted(video_files),),  # 从 input 目录选择视频
                 "confidence_threshold": ("FLOAT", {
                     "default": 80.0,
                     "min": 0.0,
                     "max": 100.0,
                     "step": 0.1
+                }),
+                "frame_skip": ("INT", {  # 添加帧跳过选项
+                    "default": 1,
+                    "min": 1,
+                    "max": 100,
+                    "step": 1
                 }),
             },
         }
@@ -70,19 +89,37 @@ class VideoFrontalDetectorNode:
         confidence = detection.score[0] * (1.0 - abs(aspect_ratio - 0.75)) * 100
         return confidence
 
-    def process(self, video, confidence_threshold):
+    def process(self, video, confidence_threshold, frame_skip):
         try:
-            if not video:
-                raise ValueError("请上传视频文件")
+            # 构建完整的视频路径
+            video_path = os.path.join(folder_paths.get_input_directory(), video)
+            if not os.path.isfile(video_path):
+                raise ValueError(f"找不到视频文件: {video}")
 
-            # 处理视频
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                raise ValueError(f"无法打开视频文件: {video}")
+
             best_frame = None
             best_confidence = 0
+            frame_count = 0
             
-            for frame in video:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                    
+                # 按 frame_skip 跳过帧
+                frame_count += 1
+                if frame_count % frame_skip != 0:
+                    continue
+                    
+                # 转换颜色空间
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
                 # 检测姿态和人脸
-                pose_results = self.pose.process(frame)
-                face_results = self.face_detection.process(frame)
+                pose_results = self.pose.process(frame_rgb)
+                face_results = self.face_detection.process(frame_rgb)
                 
                 # 计算置信度
                 pose_confidence = self.is_frontal_pose(pose_results)
@@ -94,15 +131,18 @@ class VideoFrontalDetectorNode:
                 # 更新最佳帧
                 if total_confidence > best_confidence:
                     best_confidence = total_confidence
-                    best_frame = frame
+                    best_frame = frame_rgb
                     
                 # 如果达到阈值则提前结束
                 if best_confidence >= confidence_threshold:
                     break
             
+            cap.release()
+            
             if best_frame is None:
                 raise ValueError("未能找到符合条件的帧")
                 
             return (best_frame,)
+            
         except Exception as e:
-            raise ValueError(f"处理视频时出错: {str(e)}") 
+            raise ValueError(f"处理视频时出错: {str(e)}")
