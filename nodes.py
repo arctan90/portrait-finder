@@ -191,51 +191,64 @@ class VideoFrontalDetectorNode:
                 print(f"警告: 无法打开视频文件: {video}")
                 return (self.get_empty_frame(video_path),)
 
-            found_frame = None
             frame_count = 0
-            
             print(f"开始处理视频: {video}")
             print(f"置信度阈值: {confidence_threshold}")
             
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+            def frame_generator():
+                """生成器函数，用于生成符合条件的帧"""
+                nonlocal frame_count
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
                     
-                frame_count += 1
-                if frame_count % frame_skip != 0:
-                    continue
+                    frame_count += 1
+                    if frame_count % frame_skip != 0:
+                        continue
                     
-                # 旋转和处理图像
-                frame = cv2.transpose(frame)
-                frame = cv2.flip(frame, 1)
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    # 旋转和处理图像
+                    frame = cv2.transpose(frame)
+                    frame = cv2.flip(frame, 1)
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    
+                    # 检测姿态和人脸
+                    pose_results = self.pose.process(frame_rgb)
+                    face_results = self.face_detection.process(frame_rgb)
+                    
+                    pose_confidence = self.is_frontal_pose(pose_results)
+                    face_confidence = self.is_frontal_face(face_results)
+                    total_confidence = min(pose_confidence, face_confidence)
+                    
+                    print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
+                    
+                    # 如果找到符合条件的帧，返回并停止
+                    if total_confidence >= confidence_threshold:
+                        print(f"找到符合条件的帧，置信度: {total_confidence:.2f}%")
+                        # 返回归一化的帧数据
+                        yield frame_rgb.astype(np.float32) / 255.0
+                        break
                 
-                # 检测姿态和人脸
-                pose_results = self.pose.process(frame_rgb)
-                face_results = self.face_detection.process(frame_rgb)
-                
-                pose_confidence = self.is_frontal_pose(pose_results)
-                face_confidence = self.is_frontal_face(face_results)
-                total_confidence = min(pose_confidence, face_confidence)
-                
-                print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
-                
-                # 如果找到符合条件的帧，立即停止
-                if total_confidence >= confidence_threshold:
-                    found_frame = frame_rgb
-                    print(f"找到符合条件的帧，置信度: {total_confidence:.2f}%")
-                    break
+                cap.release()
+
+            # 获取第一帧以确定尺寸
+            ret, first_frame = cap.read()
+            if not ret:
+                print("无法读取视频帧")
+                return (self.get_empty_frame(video_path),)
             
-            cap.release()
+            height, width = first_frame.shape[:2]
+            # 考虑旋转后的尺寸
+            frame_shape = (width, height, 3)  # 旋转后宽高互换
             
-            # 如果没找到合适的帧，返回空图像
-            if found_frame is None:
+            # 使用 fromiter 创建张量
+            frames = np.fromiter(frame_generator(), dtype=np.dtype((np.float32, frame_shape)))
+            if len(frames) == 0:
                 print("未找到符合条件的帧，返回空图像")
                 return (self.get_empty_frame(video_path),)
             
-            # 返回找到的帧
-            frame_tensor = torch.from_numpy(found_frame).float() / 255.0
+            # 转换为 PyTorch 张量
+            frame_tensor = torch.from_numpy(frames[0])  # 只取第一个符合条件的帧
             return (frame_tensor,)
                 
         except Exception as e:
