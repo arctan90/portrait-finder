@@ -43,14 +43,24 @@ pip install -r portrait-finder/requirements.txt
 1. 启动 ComfyUI
 2. 在节点列表中找到 "人物正面检测"
 3. 设置参数：
-   - video_path: 输入视频文件的完整路径
+   - video: 上传视频文件
+   - video_file: 选择 input 目录中的视频文件
+   - use_uploaded_video: 选择使用上传的视频还是已有视频文件
    - confidence_threshold: 置信度阈值（0-100，默认80）
+
+## 视频输入方式
+
+支持两种视频输入方式：
+1. 直接上传视频文件
+2. 从 ComfyUI 的 input 目录选择视频文件（支持 mp4, avi, mov, mkv 格式）
 
 ## 参数说明
 
 | 参数名 | 类型 | 说明 | 默认值 | 范围 |
 |--------|------|------|--------|------|
-| video_path | STRING | 视频文件路径 | "" | - |
+| video | VIDEO | 上传视频文件 | - | - |
+| video_file | VIDEO | 选择 input 目录中的视频文件 | - | - |
+| use_uploaded_video | BOOLEAN | 选择使用上传的视频还是已有视频文件 | True | - |
 | confidence_threshold | FLOAT | 检测置信度阈值 | 80.0 | 0-100 |
 
 ## 输出
