@@ -217,7 +217,9 @@ class VideoFrontalDetectorNode:
                 if frame_count % frame_skip != 0:
                     continue
                 
-                # 转换颜色空间用于检测
+                # 旋转和处理图像
+                frame = cv2.transpose(frame)
+                frame = cv2.flip(frame, 1)
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 # 检测姿态和人脸
