@@ -119,19 +119,19 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置基础权重
-        arms_weight = 0.25        # 手臂位置权重
-        shoulder_weight = 0.25    # 肩膀平行度权重
-        horizontal_weight = 0.25  # 水平对齐权重
-        vertical_weight = 0.25    # 垂直站姿权重
+        # 设置基础权重，保持主要姿态指标权重一致
+        arms_weight = 0.1         # 手臂位置权重10%
+        shoulder_weight = 0.3     # 肩膀平行度权重30%
+        horizontal_weight = 0.3   # 水平对齐权重30%
+        vertical_weight = 0.3     # 垂直站姿权重30%
         
-        # 计算关键指标的方差
+        # 计算关键指标的方差（不包括垂直站姿得分，因为它不是主要判断标准）
         key_scores = [shoulder_score, horizontal_score, arms_score]
         mean_score = sum(key_scores) / len(key_scores)
         variance = sum((x - mean_score) ** 2 for x in key_scores) / len(key_scores)
         
-        # 根据方差调整最终得分
-        variance_penalty = min(variance / 1000, 0.5)  # 限制最大惩罚为50%
+        # 调整方差惩罚的敏感度
+        variance_penalty = min(variance / 1500, 0.4)  # 降低方差惩罚的影响，最大惩罚降至40%
         
         # 计算加权平均得分
         raw_confidence = (
@@ -180,7 +180,7 @@ class VideoFrontalDetectorNode:
         ideal_ratio = 0.73  # 理想宽高比
         ratio_tolerance = 0.8  # 增大容差范围
         
-        # 计算宽高比的得分（使用更宽松的评分方式）
+        # 计算宽高比的得分（使用更宽松���评分方式）
         ratio_diff = abs(aspect_ratio - ideal_ratio) / ideal_ratio
         ratio_score = max(0, 1.0 - (ratio_diff / ratio_tolerance))
         
@@ -254,6 +254,11 @@ class VideoFrontalDetectorNode:
 
             frame_count = 0
             target_frame_index = -1  # 用于存储符合条件的帧的索引
+            best_frame_index = -1    # 用于存储最高分帧的索引
+            best_confidence = 0.0    # 用于存储最高置信度
+            best_pose_results = None # 用于存储最佳姿态结果
+            best_face_results = None # 用于存储最佳人脸结果
+            
             print(f"开始处理视频: {video}")
             print(f"置信度阈值: {confidence_threshold}")
             
@@ -282,6 +287,13 @@ class VideoFrontalDetectorNode:
                 
                 print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
                 
+                # 更新最佳帧记录
+                if total_confidence > best_confidence:
+                    best_confidence = total_confidence
+                    best_frame_index = frame_count
+                    best_pose_results = pose_results
+                    best_face_results = face_results
+                
                 # 如果找到符合条件的帧，记录索引并停止
                 if total_confidence >= confidence_threshold:
                     print(f"找到符合条件的帧，置信度: {total_confidence:.2f}%")
@@ -290,9 +302,15 @@ class VideoFrontalDetectorNode:
             
             cap.release()
             
-            # 如果没找到符合条件的帧，返回空图像和-1
+            # 如果没找到符合条件的帧，打印最佳帧信息
             if target_frame_index == -1:
-                print("未找到符合条件的帧，返回空图像")
+                print(f"\n未找到符合阈值 {confidence_threshold}% 的帧")
+                print(f"最佳帧信息（第 {best_frame_index} 帧）:")
+                print(f"最高置信度: {best_confidence:.2f}%")
+                print("\n最佳帧姿态分析:")
+                _ = self.is_frontal_pose(best_pose_results)  # 重新运行分析以打印详细信息
+                print("\n最佳帧人脸分析:")
+                _ = self.is_frontal_face(best_face_results)  # 重新运行分析以打印详细信息
                 return (self.get_empty_frame(video_path), -1)
             
             # 第二次打开视频：直接读取目标帧
@@ -395,21 +413,16 @@ class VideoFrontalDetectorNode:
                 print("无法读取视频帧")
                 return (self.get_empty_frame(video_path), -1)
             
-            # 打印原始帧的信息
-            print(f"原始帧大小: {frame.shape}")
-            
-            # 旋转图像以匹配原始视频方向
-            frame = cv2.transpose(frame)
-            frame = cv2.flip(frame, 1)
-            print(f"旋转后帧大小: {frame.shape}")
-            
-            # 转换颜色空间并返回
+            # 转换为 RGB
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # 转换为张量
             frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
+            
             # 添加 batch 维度 [H, W, C] -> [1, H, W, C]
             frame_tensor = frame_tensor.unsqueeze(0)
             
-            return (frame_tensor, 1)  # 返回第一帧和索引1
+            return (frame_tensor, 1)
                 
         except Exception as e:
             print(f"\n处理出错: {str(e)}")
