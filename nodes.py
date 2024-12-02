@@ -304,8 +304,8 @@ class VideoFrontalDetectorNode:
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
-                # 转置图像，使宽度在前 [1280, 720, 3] -> [720, 1280, 3]
-                frame_tensor = frame_tensor.transpose(0, 1)
+                # 添加 batch 维度 [H, W, C] -> [1, H, W, C]
+                frame_tensor = frame_tensor.unsqueeze(0)
                 
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 形状: {frame_tensor.shape}")
