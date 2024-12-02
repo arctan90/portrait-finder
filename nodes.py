@@ -81,6 +81,13 @@ class VideoFrontalDetectorNode:
         left_hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP]
         right_hip = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]
         mid_hip_x = (left_hip.x + right_hip.x) / 2
+        mid_hip_y = (left_hip.y + right_hip.y) / 2
+        
+        # 计算水平对齐偏差
+        horizontal_alignment = abs(nose.x - mid_hip_x)
+        
+        # 计算躯干垂直偏差
+        trunk_vertical_diff = abs((left_shoulder.y + right_shoulder.y)/2 - mid_hip_y)
         
         # 检查手臂是否遮挡（新增）
         left_elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW]
