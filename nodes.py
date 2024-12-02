@@ -180,7 +180,7 @@ class VideoFrontalDetectorNode:
         ideal_ratio = 0.73  # 理想宽高比
         ratio_tolerance = 0.8  # 增大容差范围
         
-        # 计算宽高比的得分（使用更宽松���评分方式）
+        # 计算宽高比的得分（使用更宽松评分方式）
         ratio_diff = abs(aspect_ratio - ideal_ratio) / ideal_ratio
         ratio_score = max(0, 1.0 - (ratio_diff / ratio_tolerance))
         
@@ -253,11 +253,10 @@ class VideoFrontalDetectorNode:
                 return (self.get_empty_frame(video_path), -1)
 
             frame_count = 0
-            target_frame_index = -1  # 用于存储符合条件的帧的索引
-            best_frame_index = -1    # 用于存储最高分帧的索引
-            best_confidence = 0.0    # 用于存储最高置信度
-            best_pose_results = None # 用于存储最佳姿态结果
-            best_face_results = None # 用于存储最佳人脸结果
+            target_frame_index = -1    # 用于存储符合条件的帧的索引
+            best_frame_index = -1      # 用于存储最高分帧的索引
+            best_confidence = 0.0      # 用于存储最高置信度
+            best_frame = None          # 用于存储最高分帧的图像
             
             print(f"开始处理视频: {video}")
             print(f"置信度阈值: {confidence_threshold}")
@@ -291,8 +290,7 @@ class VideoFrontalDetectorNode:
                 if total_confidence > best_confidence:
                     best_confidence = total_confidence
                     best_frame_index = frame_count
-                    best_pose_results = pose_results
-                    best_face_results = face_results
+                    best_frame = frame_rgb.copy()  # 保存最高分帧的图像
                 
                 # 如果找到符合条件的帧，记录索引并停止
                 if total_confidence >= confidence_threshold:
@@ -302,46 +300,19 @@ class VideoFrontalDetectorNode:
             
             cap.release()
             
-            # 如果没找到符合条件的帧，打印最佳帧信息
+            # 如果没找到符合条件的帧，返回最高分的帧
             if target_frame_index == -1:
                 print(f"\n未找到符合阈值 {confidence_threshold}% 的帧")
-                print(f"最佳帧信息（第 {best_frame_index} 帧）:")
-                print(f"最高置信度: {best_confidence:.2f}%")
-                print("\n最佳帧姿态分析:")
-                _ = self.is_frontal_pose(best_pose_results)  # 重新运行分析以打印详细信息
-                print("\n最佳帧人脸分析:")
-                _ = self.is_frontal_face(best_face_results)  # 重新运行分析以打印详细信息
-                return (self.get_empty_frame(video_path), -1)
-            
-            # 第二次打开视频：直接读取目标帧
-            print(f"正在提取第 {target_frame_index} 帧...")
-            cap = cv2.VideoCapture(video_path)
-            current_frame = 0
-            found_frame = None
-            
-            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame_index)
-            # 读取目标帧
-            ret, frame = cap.read()
-            cap.release()
-
-            if ret:
-                # 转换为 RGB
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                print(f"返回最高分帧（第 {best_frame_index} 帧，得分: {best_confidence:.2f}%）")
                 
-                # 转换为张量
-                frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-                
-                # 添加 batch 维度 [H, W, C] -> [1, H, W, C]
-                frame_tensor = frame_tensor.unsqueeze(0)
-                
-                print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
-                print(f"frame_tensor 形状: {frame_tensor.shape}")
-                print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
-
-                return (frame_tensor, target_frame_index)
-            else:
-                print("提取目标帧失败")
-                return (self.get_empty_frame(video_path), -1)
+                if best_frame is not None:
+                    # 转换为张量
+                    frame_tensor = torch.from_numpy(best_frame).float() / 255.0
+                    # 添加 batch 维度
+                    frame_tensor = frame_tensor.unsqueeze(0)
+                    return (frame_tensor, best_frame_index)
+                else:
+                    return (self.get_empty_frame(video_path), -1)
                 
         except Exception as e:
             print(f"处理出错: {str(e)}")
