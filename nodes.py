@@ -306,14 +306,13 @@ class VideoFrontalDetectorNode:
                          
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-                frame_tensor = frame_tensor.permute(2, 0, 1)
-                # 检查 frame_tensor 的值
+                # 删除 permute 操作
+                # frame_tensor = frame_tensor.permute(2, 0, 1)  # 删除这行
+
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
+                print(f"frame_tensor 形状: {frame_tensor.shape}")
                 print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
-                print(f"frame_tensor 示例像素值:\n{frame_tensor[0:3, 0:3, :]}")  # 打印相同位置的像素值
-        
-                
-                # 返回帧图像和索引
+
                 return (frame_tensor, target_frame_index)
             else:
                 print("提取目标帧失败")
