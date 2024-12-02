@@ -37,7 +37,7 @@ class VideoFrontalDetectorNode:
             "required": {
                 "video": (sorted(video_files),),  # 从 input 目录选择视频
                 "confidence_threshold": ("FLOAT", {
-                    "default": 70.0,
+                    "default": 75.0,
                     "min": 0.0,
                     "max": 100.0,
                     "step": 0.1
@@ -49,7 +49,7 @@ class VideoFrontalDetectorNode:
                     "step": 1
                 }),
                 "test_first_frame": ("BOOLEAN", {  # 添加测试开关
-                    "default": True,
+                    "default": False,
                 }),
             },
         }
@@ -270,9 +270,8 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if ret:
-                # 旋转图像
-                frame = cv2.transpose(frame)
-                frame = cv2.flip(frame, 1)
+                # 修改旋转顺序和方向
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)  # 顺时针旋转90度
                 # 转换为 RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # 转换为张量
