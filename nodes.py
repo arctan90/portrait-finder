@@ -119,10 +119,10 @@ class VideoFrontalDetectorNode:
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
         # 设置权重，增加手臂权重的重要性
-        arms_weight = 0.8        # 手臂位置权重（提高到0.8）
-        shoulder_weight = 0.1    # 肩膀平行度权重（降低到0.1）
-        horizontal_weight = 0.05 # 水平对齐权重（降低到0.05）
-        vertical_weight = 0.05   # 垂直站姿权重（降低到0.05）
+        arms_weight = 0.2        # 手臂位置权重（提高到0.8）
+        shoulder_weight = 0.3    # 肩膀平行度权重（降低到0.1）
+        horizontal_weight = 0.3  # 水平对齐权重（降低到0.05）
+        vertical_weight = 0.2   # 垂直站姿权重（降低到0.05）
         
         # 计算加权平均得分
         confidence = (
@@ -296,13 +296,17 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if ret:
-                # 修改旋转顺序和方向
-                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)  # 顺时针旋转90度
-                # 转换为 RGB
+                # 先转换为 RGB，再旋转
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # 修改旋转顺序和方向
+                frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 print(f"成功提取目标帧，形状: {frame_tensor.shape}")
+                # 打印一些调试信息
+                print(f"帧数据类型: {frame_rgb.dtype}")
+                print(f"帧数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
+                print(f"帧通道数: {frame_rgb.shape[-1]}")
                 return (frame_tensor,)
             else:
                 print("提取目标帧失败")
@@ -368,7 +372,7 @@ class VideoFrontalDetectorNode:
                 print(f"警告: 无法打开视频文件: {video}")
                 return (self.get_empty_frame(video_path),)
 
-            print(f"\n��取视频第一帧: {video}")
+            print(f"\n取视频第一帧: {video}")
             
             # 读取第一帧
             ret, frame = cap.read()
