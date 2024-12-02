@@ -140,30 +140,19 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置基础权重，增加水平对齐和肩膀对齐的权重
+        # 设置基础权重，进一步增加水平对齐的权重
         arms_weight = 0.05        # 手臂位置权重5%
-        shoulder_weight = 0.40    # 肩膀平行度权重40%
-        horizontal_weight = 0.40  # 水平对齐权重40%
-        vertical_weight = 0.15    # 垂直站姿权重15%
-        
-        # 计算关键指标的方差（不包括垂直站姿得分，因为它不是主要判断标准）
-        key_scores = [shoulder_score, horizontal_score, arms_score]
-        mean_score = sum(key_scores) / len(key_scores)
-        variance = sum((x - mean_score) ** 2 for x in key_scores) / len(key_scores)
-        
-        # 调整方差惩罚的敏感度
-        variance_penalty = min(variance / 1500, 0.4)  # 降低方差惩罚的影响，最大惩罚降至40%
+        shoulder_weight = 0.35    # 肩膀平行度权重35%
+        horizontal_weight = 0.5  # 水平对齐权重50%
+        vertical_weight = 0.10    # 垂直站姿权重10%
         
         # 计算加权平均得分
-        raw_confidence = (
+        confidence = (
             shoulder_score * shoulder_weight +
             horizontal_score * horizontal_weight +
             vertical_score * vertical_weight +
             arms_score * arms_weight
         )
-        
-        # 应用方差惩罚
-        confidence = raw_confidence * (1 - variance_penalty)
         
         # 返回得分和详细信息
         scores = {
@@ -171,9 +160,6 @@ class VideoFrontalDetectorNode:
             'horizontal_score': horizontal_score,
             'vertical_score': vertical_score,
             'arms_score': arms_score,
-            'variance': variance,
-            'variance_penalty': variance_penalty,
-            'raw_confidence': raw_confidence,
             'final_confidence': confidence
         }
         
@@ -191,9 +177,6 @@ class VideoFrontalDetectorNode:
         print(f"      垂直站姿得分: {vertical_score:.2f}% (权重: {vertical_weight})")
         print(f"      手臂遮挡状态: {'是' if arms_blocking else '否'}")
         print(f"      手臂位置得分: {arms_score:.2f}% (权重: {arms_weight})")
-        print(f"      关键指标方差: {variance:.2f}")
-        print(f"      方差惩罚: {variance_penalty*100:.2f}%")
-        print(f"      原始得分: {raw_confidence:.2f}%")
         print(f"      最终姿态得分: {confidence:.2f}%")
         
         return confidence, scores
@@ -329,7 +312,7 @@ class VideoFrontalDetectorNode:
                 face_confidence, face_scores = self.is_frontal_face(face_results)
                 total_confidence = min(pose_confidence, face_confidence)
                 
-                print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
+                print(f"\n第 {frame_count} 帧 - 综合置��度: {total_confidence:.2f}%")
                 
                 # 更新最佳帧记录
                 if total_confidence > best_confidence:
@@ -358,9 +341,6 @@ class VideoFrontalDetectorNode:
             print(f"  水平对齐得分: {best_pose_scores['horizontal_score']:.2f}%")
             print(f"  垂直站姿得分: {best_pose_scores['vertical_score']:.2f}%")
             print(f"  手臂位置得分: {best_pose_scores['arms_score']:.2f}%")
-            print(f"  关键指标方差: {best_pose_scores['variance']:.2f}")
-            print(f"  方差惩罚: {best_pose_scores['variance_penalty']*100:.2f}%")
-            print(f"  原始姿态得分: {best_pose_scores['raw_confidence']:.2f}%")
             print(f"  最终姿态得分: {best_pose_scores['final_confidence']:.2f}%")
             print("\n最高分帧人脸得分详情:")
             print(f"  检测置信度: {best_face_scores['detection_score']*100:.2f}%")
