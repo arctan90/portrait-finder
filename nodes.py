@@ -155,7 +155,7 @@ class VideoFrontalDetectorNode:
         if not results.detections:
             return 0.0
         
-        # 获取所有检测到的人脸中置信度最高的
+        # 获取所有检测���的人脸中置信度最高的
         best_detection = max(results.detections, key=lambda x: x.score[0])
         
         # 获取人脸框的关键点
@@ -301,11 +301,11 @@ class VideoFrontalDetectorNode:
                 # 转换为 RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # 转换为张量
+                # 转换为张量，保持原始尺寸 [H, W, C] = [1280, 720, 3]
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
-                # 使用 permute 将通道放在第一个维度
-                # frame_tensor = frame_tensor.permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
+                # 确保形状是 [H, W, C]，如果需要的话可以使用 contiguous()
+                frame_tensor = frame_tensor.contiguous()
                 
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 形状: {frame_tensor.shape}")
