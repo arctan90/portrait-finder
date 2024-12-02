@@ -296,19 +296,28 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if ret:
-                # 先旋转
-                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                # 再转换颜色空间
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # 先转换颜色空间
+                frame_bgr = frame.copy()  # 保存一份原始帧的副本
+                # 直接转换为 RGB
+                frame_rgb = frame_bgr[..., ::-1]  # BGR 转 RGB 的另一种方式
+                # 再旋转
+                frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                
+                # 转换为张量前检查数据
+                print(f"BGR 帧形状: {frame_bgr.shape}")
+                print(f"BGR 帧数值范围: [{frame_bgr.min()}, {frame_bgr.max()}]")
+                print(f"RGB 帧形状: {frame_rgb.shape}")
+                print(f"RGB 帧数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
+                print(f"RGB 帧前几个像素值: \n{frame_rgb[0,0]}\n{frame_rgb[0,1]}\n{frame_rgb[0,2]}")
+                
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-                print(f"成功提取目标帧，形状: {frame_tensor.shape}")
-                print(f"帧数据类型: {frame_rgb.dtype}")
-                print(f"帧数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
-                print(f"帧通道数: {frame_rgb.shape[-1]}")
-                # 添加更多调试信息
-                print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
+                
+                # 检查张量数据
                 print(f"张量形状: {frame_tensor.shape}")
+                print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
+                print(f"张量前几个像素值: \n{frame_tensor[0,0]}\n{frame_tensor[0,1]}\n{frame_tensor[0,2]}")
+                
                 return (frame_tensor,)
             else:
                 print("提取目标帧失败")
