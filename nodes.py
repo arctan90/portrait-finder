@@ -119,11 +119,11 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置基础权重，保持主要姿态指标权重一致
+        # 设置基础权重，增加水平对齐和肩膀对齐的权重
         arms_weight = 0.05        # 手臂位置权重5%
-        shoulder_weight = 0.32    # 肩膀平行度权重32%
-        horizontal_weight = 0.32  # 水平对齐权重32%
-        vertical_weight = 0.31    # 垂直站姿权重31%
+        shoulder_weight = 0.40    # 肩膀平行度权重40%
+        horizontal_weight = 0.40  # 水平对齐权重40%
+        vertical_weight = 0.15    # 垂直站姿权重15%
         
         # 计算关键指标的方差（不包括垂直站姿得分，因为它不是主要判断标准）
         key_scores = [shoulder_score, horizontal_score, arms_score]
