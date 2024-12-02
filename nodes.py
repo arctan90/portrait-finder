@@ -82,30 +82,47 @@ class VideoFrontalDetectorNode:
         right_hip = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]
         mid_hip_x = (left_hip.x + right_hip.x) / 2
         
-        # 计算垂直对齐度（左右方向）
-        horizontal_alignment = abs(nose.x - mid_hip_x)
+        # 检查手臂是否遮挡（新增）
+        left_elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW]
+        right_elbow = landmarks[self.mp_pose.PoseLandmark.RIGHT_ELBOW]
+        left_wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST]
+        right_wrist = landmarks[self.mp_pose.PoseLandmark.RIGHT_WRIST]
         
-        # 检查躯干是否垂直
-        mid_shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
-        mid_hip_y = (left_hip.y + right_hip.y) / 2
-        trunk_vertical_diff = abs((mid_shoulder_y - mid_hip_y) - 
-                                abs(left_shoulder.y - left_hip.y))
+        # 计算手臂遮挡得分
+        # 1. 检查手臂是否在身体两侧
+        arms_blocking = False
+        arms_score = 100.0
         
-        # 计算各项得分
+        # 检查左手臂是否遮挡
+        if (left_elbow.x > nose.x or left_wrist.x > nose.x or  # 手臂在脸部前方
+            (left_elbow.z < left_shoulder.z and left_wrist.z < left_shoulder.z)):  # 手臂在身体前方
+            arms_blocking = True
+            arms_score -= 50.0
+        
+        # 检查右手臂是否遮挡
+        if (right_elbow.x < nose.x or right_wrist.x < nose.x or  # 手臂在脸部前方
+            (right_elbow.z < right_shoulder.z and right_wrist.z < right_shoulder.z)):  # 手臂在身体前方
+            arms_blocking = True
+            arms_score -= 50.0
+        
+        # 计算其他得分
         shoulder_score = (1.0 - shoulder_diff) * 100  # 肩膀平行度得分
-        horizontal_score = (1.0 - horizontal_alignment) * 100  # 水平对齐得分
-        vertical_score = (1.0 - trunk_vertical_diff) * 100  # 垂直站姿得分
+        horizontal_score = (1.0 - abs(nose.x - mid_hip_x)) * 100  # 水平对齐得分
+        vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
+                                   (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
         # 设置权重
-        shoulder_weight = 0.4    # 肩膀平行度权重
-        horizontal_weight = 0.4  # 水平对齐权重
+        shoulder_weight = 0.3    # 肩膀平行度权重
+        horizontal_weight = 0.3  # 水平对齐权重
         vertical_weight = 0.2    # 垂直站姿权重
+        arms_weight = 0.2        # 手臂位置权重
         
         # 计算加权平均得分
         confidence = (
             shoulder_score * shoulder_weight +
             horizontal_score * horizontal_weight +
-            vertical_score * vertical_weight
+            vertical_score * vertical_weight +
+            arms_score * arms_weight
         )
         
         # 打印详细信息
@@ -120,6 +137,8 @@ class VideoFrontalDetectorNode:
         print(f"      水平对齐得分: {horizontal_score:.2f}% (权重: {horizontal_weight})")
         print(f"      躯干垂直偏差: {trunk_vertical_diff:.3f}")
         print(f"      垂直站姿得分: {vertical_score:.2f}% (权重: {vertical_weight})")
+        print(f"      手臂遮挡状态: {'是' if arms_blocking else '否'}")
+        print(f"      手臂位置得分: {arms_score:.2f}% (权重: {arms_weight})")
         print(f"      最终姿态得分: {confidence:.2f}%")
         
         return confidence
@@ -271,7 +290,7 @@ class VideoFrontalDetectorNode:
             
             if ret:
                 # 修改旋转顺序和方向
-                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)  # 顺时针旋转90度
+                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)  # 顺时针旋转90度
                 # 转换为 RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # 转换为张量
