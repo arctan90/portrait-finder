@@ -311,7 +311,7 @@ class VideoFrontalDetectorNode:
                 print(f"frame_tensor 形状: {frame_tensor.shape}")
                 print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
 
-                frame_tensor = torch.cat([
+                frame_tensor = torch.stack([
                     frame_tensor[0].unsqueeze(0),  # R通道
                     frame_tensor[1].unsqueeze(0),  # G通道
                     frame_tensor[2].unsqueeze(0),  # B通道
