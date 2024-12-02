@@ -296,17 +296,19 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if ret:
-                # 先转换为 RGB，再旋转
+                # 先旋转
+                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # 再转换颜色空间
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # 修改旋转顺序和方向
-                frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 print(f"成功提取目标帧，形状: {frame_tensor.shape}")
-                # 打印一些调试信息
                 print(f"帧数据类型: {frame_rgb.dtype}")
                 print(f"帧数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
                 print(f"帧通道数: {frame_rgb.shape[-1]}")
+                # 添加更多调试信息
+                print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
+                print(f"张量形状: {frame_tensor.shape}")
                 return (frame_tensor,)
             else:
                 print("提取目标帧失败")
