@@ -118,11 +118,11 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置权重
-        shoulder_weight = 0.3    # 肩膀平行度权重
-        horizontal_weight = 0.3  # 水平对齐权重
-        vertical_weight = 0.2    # 垂直站姿权重
-        arms_weight = 0.2        # 手臂位置权重
+        # 设置权重，增加手臂权重的重要性
+        arms_weight = 0.8        # 手臂位置权重（提高到0.8）
+        shoulder_weight = 0.1    # 肩膀平行度权重（降低到0.1）
+        horizontal_weight = 0.05 # 水平对齐权重（降低到0.05）
+        vertical_weight = 0.05   # 垂直站姿权重（降低到0.05）
         
         # 计算加权平均得分
         confidence = (
@@ -368,7 +368,7 @@ class VideoFrontalDetectorNode:
                 print(f"警告: 无法打开视频文件: {video}")
                 return (self.get_empty_frame(video_path),)
 
-            print(f"\n读取视频第一帧: {video}")
+            print(f"\n��取视频第一帧: {video}")
             
             # 读取第一帧
             ret, frame = cap.read()
