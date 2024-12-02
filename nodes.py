@@ -296,27 +296,19 @@ class VideoFrontalDetectorNode:
             cap.release()
             
             if ret:
-                # 先转换颜色空间
-                frame_bgr = frame.copy()  # 保存一份原始帧的副本
-                # 直接转换为 RGB
-                frame_rgb = frame_bgr[..., ::-1]  # BGR 转 RGB 的另一种方式
-                # 再旋转
-                frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                
-                # 转换为张量前检查数据
-                print(f"BGR 帧形状: {frame_bgr.shape}")
-                print(f"BGR 帧数值范围: [{frame_bgr.min()}, {frame_bgr.max()}]")
-                print(f"RGB 帧形状: {frame_rgb.shape}")
-                print(f"RGB 帧数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
-                print(f"RGB 帧前几个像素值: \n{frame_rgb[0,0]}\n{frame_rgb[0,1]}\n{frame_rgb[0,2]}")
+                # 先旋转
+                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # 直接使用 BGR 转 RGB 的正确方式
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
-                # 检查张量数据
-                print(f"张量形状: {frame_tensor.shape}")
-                print(f"张量数值范围: [{frame_tensor.min().item():.3f}, {frame_tensor.max().item():.3f}]")
-                print(f"张量前几个像素值: \n{frame_tensor[0,0]}\n{frame_tensor[0,1]}\n{frame_tensor[0,2]}")
+                # 调试信息
+                print(f"BGR 帧形状: {frame.shape}")
+                print(f"BGR 第一个像素值: {frame[0,0]}")  # 应该看到不同的 BGR 值
+                print(f"RGB 帧形状: {frame_rgb.shape}")
+                print(f"RGB 第一个像素值: {frame_rgb[0,0]}")  # 应该看到不同的 RGB 值
                 
                 return (frame_tensor,)
             else:
