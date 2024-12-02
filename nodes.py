@@ -298,17 +298,15 @@ class VideoFrontalDetectorNode:
             cap.release()
 
             if ret:
-                # 先旋转
-                # frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                
-                # 转换为 RGB 并增强颜色
+                # 转换为 RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                         
+                
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-                # 删除 permute 操作
-                # frame_tensor = frame_tensor.permute(2, 0, 1)  # 删除这行
-
+                
+                # 使用 permute 将通道放在第一个维度
+                frame_tensor = frame_tensor.permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
+                
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 形状: {frame_tensor.shape}")
                 print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
