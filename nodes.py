@@ -182,7 +182,7 @@ class VideoFrontalDetectorNode:
         confidence = (
             (best_detection.score[0] * detection_weight +  # 检测置信度
              ratio_score * ratio_weight +                 # 宽高比得分
-             face_size_score * size_weight) *            # 人脸大小得分
+             face_size_score * size_weight) *            # 人脸大小��分
             100                                          # 转换为百分比
         )
         
@@ -295,21 +295,44 @@ class VideoFrontalDetectorNode:
             # 读取目标帧
             ret, frame = cap.read()
             cap.release()
-            
+            # 检查是否是灰度图像
+            if (frame[:, :, 0] == frame[:, :, 1]).all() and (frame[:, :, 1] == frame[:, :, 2]).all():
+                print("该帧是灰度图像")
+            else:
+                print("该帧是彩色图像")
             if ret:
                 # 先旋转
                 frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # 直接使用 BGR 转 RGB 的正确方式
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
+                # 检查 frame_rgb 的值
+                print(f"frame_rgb 数据类型: {frame_rgb.dtype}")
+                print(f"frame_rgb 数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
+                print(f"frame_rgb 示例像素值:\n{frame_rgb[0:3, 0:3, :]}")  # 打印前几个像素的所有通道值
+                
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
-                # 调试信息
-                print(f"BGR 帧形状: {frame.shape}")
-                print(f"BGR 第一个像素值: {frame[0,0]}")  # 应该看到不同的 BGR 值
-                print(f"RGB 帧形状: {frame_rgb.shape}")
-                print(f"RGB 第一个像素值: {frame_rgb[0,0]}")  # 应该看到不同的 RGB 值
+                # 检查 frame_tensor 的值
+                print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
+                print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
+                print(f"frame_tensor 示例像素值:\n{frame_tensor[0:3, 0:3, :]}")  # 打印相同位置的像素值
+                
+                # 检查是否所有通道都相同（是否是灰度图）
+                is_grayscale = torch.allclose(frame_tensor[..., 0], frame_tensor[..., 1]) and \
+                               torch.allclose(frame_tensor[..., 1], frame_tensor[..., 2])
+                print(f"\n是否为灰度图: {is_grayscale}")
+                
+                # 检查通道间的差异
+                if not is_grayscale:
+                    channel_diff_01 = (frame_tensor[..., 0] - frame_tensor[..., 1]).abs().mean().item()
+                    channel_diff_12 = (frame_tensor[..., 1] - frame_tensor[..., 2]).abs().mean().item()
+                    channel_diff_02 = (frame_tensor[..., 0] - frame_tensor[..., 2]).abs().mean().item()
+                    print(f"通道间平均差异:")
+                    print(f"R-G: {channel_diff_01:.6f}")
+                    print(f"G-B: {channel_diff_12:.6f}")
+                    print(f"R-B: {channel_diff_02:.6f}")
                 
                 return (frame_tensor,)
             else:
