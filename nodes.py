@@ -182,7 +182,7 @@ class VideoFrontalDetectorNode:
         confidence = (
             (best_detection.score[0] * detection_weight +  # 检测置信度
              ratio_score * ratio_weight +                 # 宽高比得分
-             face_size_score * size_weight) *            # 人脸大小��分
+             face_size_score * size_weight) *            # 人脸大小分
             100                                          # 转换为百分比
         )
         
@@ -303,13 +303,15 @@ class VideoFrontalDetectorNode:
             if ret:
                 # 先旋转
                 frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                # 直接使用 BGR 转 RGB 的正确方式
+                
+                # 转换为 RGB 并增强颜色
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # 检查 frame_rgb 的值
-                print(f"frame_rgb 数据类型: {frame_rgb.dtype}")
-                print(f"frame_rgb 数值范围: [{frame_rgb.min()}, {frame_rgb.max()}]")
-                print(f"frame_rgb 示例像素值:\n{frame_rgb[0:3, 0:3, :]}")  # 打印前几个像素的所有通道值
+                # 增强颜色饱和度
+                frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV).astype(np.float32)
+                frame_hsv[:, :, 1] = frame_hsv[:, :, 1] * 1.5  # 增加饱和度
+                frame_hsv[:, :, 1] = np.clip(frame_hsv[:, :, 1], 0, 255)  # 确保值在有效范围内
+                frame_rgb = cv2.cvtColor(frame_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
                 
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
