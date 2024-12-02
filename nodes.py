@@ -61,7 +61,8 @@ class VideoFrontalDetectorNode:
             "video": ("videoplayer", {"format": VIDEO_EXTENSIONS}),
         }
     
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("IMAGE", "INT",)
+    RETURN_NAMES = ("image", "frame_index",)
     FUNCTION = "process"
     CATEGORY = "video/frontal"
 
@@ -230,12 +231,12 @@ class VideoFrontalDetectorNode:
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
                 print(f"警告: 找不到视频文件: {video}")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
 
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 print(f"警告: 无法打开视频文件: {video}")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
 
             frame_count = 0
             target_frame_index = -1  # 用于存储符合条件的帧的索引
@@ -275,10 +276,10 @@ class VideoFrontalDetectorNode:
             
             cap.release()
             
-            # 如果没找到符合条件的帧，返回空图像
+            # 如果没找到符合条件的帧，返回空图像和-1
             if target_frame_index == -1:
                 print("未找到符合条件的帧，返回空图像")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
             
             # 第二次打开视频：直接读取目标帧
             print(f"正在提取第 {target_frame_index} 帧...")
@@ -286,33 +287,23 @@ class VideoFrontalDetectorNode:
             current_frame = 0
             found_frame = None
             
-            while current_frame < target_frame_index:
-                ret = cap.read()[0]  # 只需要 ret 值
-                if not ret:
-                    break
-                current_frame += 1
-            
+            # while current_frame < target_frame_index:
+            #     ret = cap.read()[0]  # 只需要 ret 值
+            #     if not ret:
+            #         break
+            #     current_frame += 1
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame_index)
             # 读取目标帧
             ret, frame = cap.read()
             cap.release()
-            # 检查是否是灰度图像
-            if (frame[:, :, 0] == frame[:, :, 1]).all() and (frame[:, :, 1] == frame[:, :, 2]).all():
-                print("该帧是灰度图像")
-            else:
-                print("该帧是彩色图像")
+
             if ret:
                 # 先旋转
                 frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 
                 # 转换为 RGB 并增强颜色
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                # 增强颜色饱和度
-                frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV).astype(np.float32)
-                frame_hsv[:, :, 1] = frame_hsv[:, :, 1] * 1.5  # 增加饱和度
-                frame_hsv[:, :, 1] = np.clip(frame_hsv[:, :, 1], 0, 255)  # 确保值在有效范围内
-                frame_rgb = cv2.cvtColor(frame_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
-                
+                         
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
@@ -320,30 +311,17 @@ class VideoFrontalDetectorNode:
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
                 print(f"frame_tensor 示例像素值:\n{frame_tensor[0:3, 0:3, :]}")  # 打印相同位置的像素值
+        
                 
-                # 检查是否所有通道都相同（是否是灰度图）
-                is_grayscale = torch.allclose(frame_tensor[..., 0], frame_tensor[..., 1]) and \
-                               torch.allclose(frame_tensor[..., 1], frame_tensor[..., 2])
-                print(f"\n是否为灰度图: {is_grayscale}")
-                
-                # 检查通道间的差异
-                if not is_grayscale:
-                    channel_diff_01 = (frame_tensor[..., 0] - frame_tensor[..., 1]).abs().mean().item()
-                    channel_diff_12 = (frame_tensor[..., 1] - frame_tensor[..., 2]).abs().mean().item()
-                    channel_diff_02 = (frame_tensor[..., 0] - frame_tensor[..., 2]).abs().mean().item()
-                    print(f"通道间平均差异:")
-                    print(f"R-G: {channel_diff_01:.6f}")
-                    print(f"G-B: {channel_diff_12:.6f}")
-                    print(f"R-B: {channel_diff_02:.6f}")
-                
-                return (frame_tensor,)
+                # 返回帧图像和索引
+                return (frame_tensor, target_frame_index)
             else:
                 print("提取目标帧失败")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
                 
         except Exception as e:
             print(f"处理出错: {str(e)}")
-            return (self.get_empty_frame(video_path),)
+            return (self.get_empty_frame(video_path), -1)
     
     @classmethod
     def VALIDATE_INPUTS(cls, video, confidence_threshold, frame_skip):
@@ -394,12 +372,12 @@ class VideoFrontalDetectorNode:
             video_path = os.path.join(folder_paths.get_input_directory(), video)
             if not os.path.isfile(video_path):
                 print(f"警告: 找不到视频文件: {video}")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
 
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 print(f"警告: 无法打开视频文件: {video}")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
 
             print(f"\n取视频第一帧: {video}")
             
@@ -409,7 +387,7 @@ class VideoFrontalDetectorNode:
             
             if not ret:
                 print("无法读取视频帧")
-                return (self.get_empty_frame(video_path),)
+                return (self.get_empty_frame(video_path), -1)
             
             # 打印原始帧的信息
             print(f"原始帧大小: {frame.shape}")
@@ -422,11 +400,11 @@ class VideoFrontalDetectorNode:
             # 转换颜色空间并返回
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-            return (frame_tensor,)
+            return (frame_tensor, 1)  # 返回第一帧和索引1
                 
         except Exception as e:
             print(f"\n处理出错: {str(e)}")
-            return (self.get_empty_frame(video_path),)
+            return (self.get_empty_frame(video_path), -1)
     
 def calculate_file_hash(filename: str, hash_every_n: int = 1):
     #Larger video files were taking >.5 seconds to hash even when cached,
