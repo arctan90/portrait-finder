@@ -299,7 +299,7 @@ class VideoFrontalDetectorNode:
 
             if ret:
                 # 先旋转
-                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 
                 # 转换为 RGB 并增强颜色
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
