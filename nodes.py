@@ -119,19 +119,30 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置更均衡的权重
+        # 设置基础权重
         arms_weight = 0.25        # 手臂位置权重
         shoulder_weight = 0.25    # 肩膀平行度权重
         horizontal_weight = 0.25  # 水平对齐权重
         vertical_weight = 0.25    # 垂直站姿权重
         
+        # 计算关键指标的方差
+        key_scores = [shoulder_score, horizontal_score, arms_score]
+        mean_score = sum(key_scores) / len(key_scores)
+        variance = sum((x - mean_score) ** 2 for x in key_scores) / len(key_scores)
+        
+        # 根据方差调整最终得分
+        variance_penalty = min(variance / 1000, 0.5)  # 限制最大惩罚为50%
+        
         # 计算加权平均得分
-        confidence = (
+        raw_confidence = (
             shoulder_score * shoulder_weight +
             horizontal_score * horizontal_weight +
             vertical_score * vertical_weight +
             arms_score * arms_weight
         )
+        
+        # 应用方差惩罚
+        confidence = raw_confidence * (1 - variance_penalty)
         
         # 打印详细信息
         print(f"    姿态检测详情:")
@@ -147,6 +158,9 @@ class VideoFrontalDetectorNode:
         print(f"      垂直站姿得分: {vertical_score:.2f}% (权重: {vertical_weight})")
         print(f"      手臂遮挡状态: {'是' if arms_blocking else '否'}")
         print(f"      手臂位置得分: {arms_score:.2f}% (权重: {arms_weight})")
+        print(f"      关键指标方差: {variance:.2f}")
+        print(f"      方差惩罚: {variance_penalty*100:.2f}%")
+        print(f"      原始得分: {raw_confidence:.2f}%")
         print(f"      最终姿态得分: {confidence:.2f}%")
         
         return confidence
@@ -397,6 +411,9 @@ class VideoFrontalDetectorNode:
             # 转换颜色空间并返回
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
+            # 添加 batch 维度 [H, W, C] -> [1, H, W, C]
+            frame_tensor = frame_tensor.unsqueeze(0)
+            
             return (frame_tensor, 1)  # 返回第一帧和索引1
                 
         except Exception as e:
