@@ -305,7 +305,7 @@ class VideoFrontalDetectorNode:
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
                 
                 # 使用 permute 将通道放在第一个维度
-                frame_tensor = frame_tensor.permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
+                # frame_tensor = frame_tensor.permute(2, 0, 1)  # [H, W, C] -> [C, H, W]
                 
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 形状: {frame_tensor.shape}")
