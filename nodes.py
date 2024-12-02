@@ -306,7 +306,7 @@ class VideoFrontalDetectorNode:
                          
                 # 转换为张量
                 frame_tensor = torch.from_numpy(frame_rgb).float() / 255.0
-                
+                frame_tensor = frame_tensor.permute(2, 0, 1)
                 # 检查 frame_tensor 的值
                 print(f"\nframe_tensor 数据类型: {frame_tensor.dtype}")
                 print(f"frame_tensor 数值范围: [{frame_tensor.min().item()}, {frame_tensor.max().item()}]")
