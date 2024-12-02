@@ -140,10 +140,10 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
-        # 设置基础权重，进一步增加水平对齐的权重
+        # 设置基础权重，大幅增加水平对齐的权重
         arms_weight = 0.05        # 手臂位置权重5%
-        shoulder_weight = 0.35    # 肩膀平行度权重35%
-        horizontal_weight = 0.5  # 水平对齐权重50%
+        shoulder_weight = 0.15    # 肩膀平行度权重15%
+        horizontal_weight = 0.70  # 水平对齐权重70%
         vertical_weight = 0.10    # 垂直站姿权重10%
         
         # 计算加权平均得分
@@ -312,7 +312,7 @@ class VideoFrontalDetectorNode:
                 face_confidence, face_scores = self.is_frontal_face(face_results)
                 total_confidence = min(pose_confidence, face_confidence)
                 
-                print(f"\n第 {frame_count} 帧 - 综合置��度: {total_confidence:.2f}%")
+                print(f"\n第 {frame_count} 帧 - 综合置信度: {total_confidence:.2f}%")
                 
                 # 更新最佳帧记录
                 if total_confidence > best_confidence:
