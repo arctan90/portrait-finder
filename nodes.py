@@ -120,10 +120,10 @@ class VideoFrontalDetectorNode:
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
         # 设置基础权重，保持主要姿态指标权重一致
-        arms_weight = 0.1         # 手臂位置权重10%
-        shoulder_weight = 0.3     # 肩膀平行度权重30%
-        horizontal_weight = 0.3   # 水平对齐权重30%
-        vertical_weight = 0.3     # 垂直站姿权重30%
+        arms_weight = 0.05        # 手臂位置权重5%
+        shoulder_weight = 0.32    # 肩膀平行度权重32%
+        horizontal_weight = 0.32  # 水平对齐权重32%
+        vertical_weight = 0.31    # 垂直站姿权重31%
         
         # 计算关键指标的方差（不包括垂直站姿得分，因为它不是主要判断标准）
         key_scores = [shoulder_score, horizontal_score, arms_score]
@@ -398,7 +398,7 @@ class VideoFrontalDetectorNode:
     
     @classmethod
     def IS_CHANGED(cls, video, confidence_threshold, frame_skip):
-        # ���取视频文件的完整路径
+        # 取视频文件的完整路径
         video_path = folder_paths.get_annotated_filepath(video)
         if not video_path:
             return ""
