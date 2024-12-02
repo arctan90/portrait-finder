@@ -136,7 +136,7 @@ class VideoFrontalDetectorNode:
         
         # 计算人脸框的宽高比
         aspect_ratio = bbox.width / bbox.height  # 可能需要调整为 height/width
-        ideal_ratio = 0.8  # 理想宽高比
+        ideal_ratio = 0.73  # 理想宽高比
         ratio_tolerance = 0.8  # 增大容差范围
         
         # 计算宽高比的得分（使用更宽松的评分方式）
