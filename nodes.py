@@ -301,11 +301,6 @@ class VideoFrontalDetectorNode:
             current_frame = 0
             found_frame = None
             
-            # while current_frame < target_frame_index:
-            #     ret = cap.read()[0]  # 只需要 ret 值
-            #     if not ret:
-            #         break
-            #     current_frame += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame_index)
             # 读取目标帧
             ret, frame = cap.read()
