@@ -85,33 +85,41 @@ class VideoFrontalDetectorNode:
         # 计算垂直对齐度（左右方向）
         horizontal_alignment = abs(nose.x - mid_hip_x)
         
-        # 检查躯干是否垂直（新增）
-        # 计算躯干与垂直线的夹角
+        # 检查躯干是否垂直
         mid_shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
         mid_hip_y = (left_hip.y + right_hip.y) / 2
         trunk_vertical_diff = abs((mid_shoulder_y - mid_hip_y) - 
-                                abs(left_shoulder.y - left_hip.y))  # 理想情况下应接近0
+                                abs(left_shoulder.y - left_hip.y))
         
         # 计算各项得分
         shoulder_score = (1.0 - shoulder_diff) * 100  # 肩膀平行度得分
         horizontal_score = (1.0 - horizontal_alignment) * 100  # 水平对齐得分
         vertical_score = (1.0 - trunk_vertical_diff) * 100  # 垂直站姿得分
         
-        # 计算总体置信度
-        confidence = min(shoulder_score, horizontal_score, vertical_score)
+        # 设置权重
+        shoulder_weight = 0.4    # 肩膀平行度权重
+        horizontal_weight = 0.4  # 水平对齐权重
+        vertical_weight = 0.2    # 垂直站姿权重
+        
+        # 计算加权平均得分
+        confidence = (
+            shoulder_score * shoulder_weight +
+            horizontal_score * horizontal_weight +
+            vertical_score * vertical_weight
+        )
         
         # 打印详细信息
         print(f"    姿态检测详情:")
         print(f"      左肩位置: ({left_shoulder.x:.3f}, {left_shoulder.y:.3f}, {left_shoulder.z:.3f})")
         print(f"      右肩位置: ({right_shoulder.x:.3f}, {right_shoulder.y:.3f}, {right_shoulder.z:.3f})")
         print(f"      肩膀深度差异: {shoulder_diff:.3f}")
-        print(f"      肩膀对齐得分: {shoulder_score:.2f}%")
+        print(f"      肩膀对齐得分: {shoulder_score:.2f}% (权重: {shoulder_weight})")
         print(f"      鼻子位置: ({nose.x:.3f}, {nose.y:.3f})")
         print(f"      躯干中点: ({mid_hip_x:.3f}, {mid_hip_y:.3f})")
         print(f"      水平对齐偏差: {horizontal_alignment:.3f}")
-        print(f"      水平对齐得分: {horizontal_score:.2f}%")
+        print(f"      水平对齐得分: {horizontal_score:.2f}% (权重: {horizontal_weight})")
         print(f"      躯干垂直偏差: {trunk_vertical_diff:.3f}")
-        print(f"      垂直站姿得分: {vertical_score:.2f}%")
+        print(f"      垂直站姿得分: {vertical_score:.2f}% (权重: {vertical_weight})")
         print(f"      最终姿态得分: {confidence:.2f}%")
         
         return confidence
