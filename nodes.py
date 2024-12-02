@@ -81,11 +81,33 @@ class VideoFrontalDetectorNode:
         nose = landmarks[self.mp_pose.PoseLandmark.NOSE]
         left_hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP]
         right_hip = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]
+        
+        # 计算胸部中点（肩膀中点）
+        mid_shoulder_x = (left_shoulder.x + right_shoulder.x) / 2
+        mid_shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
+        
+        # 计算臀部中点
         mid_hip_x = (left_hip.x + right_hip.x) / 2
         mid_hip_y = (left_hip.y + right_hip.y) / 2
         
-        # 计算水平对齐偏差
-        horizontal_alignment = abs(nose.x - mid_hip_x)
+        # 计算三个关键点的水平对齐偏差
+        nose_to_shoulder_x = abs(nose.x - mid_shoulder_x)
+        shoulder_to_hip_x = abs(mid_shoulder_x - mid_hip_x)
+        nose_to_hip_x = abs(nose.x - mid_hip_x)
+        
+        # 计算综合水平对齐得分
+        # 使用三个部分的最大偏差作为基准，这样任何一个部分偏离都会影响得分
+        horizontal_alignment = max(nose_to_shoulder_x, shoulder_to_hip_x, nose_to_hip_x)
+        horizontal_score = (1.0 - horizontal_alignment) * 100  # 水平对齐得分
+        
+        # 打印更详细的水平对齐信息
+        print(f"      鼻子位置: ({nose.x:.3f}, {nose.y:.3f})")
+        print(f"      胸部中点: ({mid_shoulder_x:.3f}, {mid_shoulder_y:.3f})")
+        print(f"      臀部中点: ({mid_hip_x:.3f}, {mid_hip_y:.3f})")
+        print(f"      鼻子到胸部偏差: {nose_to_shoulder_x:.3f}")
+        print(f"      胸部到臀部偏差: {shoulder_to_hip_x:.3f}")
+        print(f"      鼻子到臀部偏差: {nose_to_hip_x:.3f}")
+        print(f"      最大水平偏差: {horizontal_alignment:.3f}")
         
         # 计算躯干垂直偏差
         trunk_vertical_diff = abs((left_shoulder.y + right_shoulder.y)/2 - mid_hip_y)
@@ -115,7 +137,6 @@ class VideoFrontalDetectorNode:
         
         # 计算其他得分
         shoulder_score = (1.0 - shoulder_diff) * 100  # 肩膀平行度得分
-        horizontal_score = (1.0 - abs(nose.x - mid_hip_x)) * 100  # 水平对齐得分
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
