@@ -24,9 +24,10 @@ class VideoFrontalDetectorNode:
     
     @classmethod
     def INPUT_TYPES(cls):
+        video_files = cls.get_video_files()
         return {
             "required": {
-                "video": ([""],),  # 初始为空列表
+                "video": (video_files,),  # 使用动态获取的视频文件列表
                 "confidence_threshold": ("FLOAT", {
                     "default": 75.0,
                     "min": 0.0,
