@@ -26,7 +26,7 @@ class VideoFrontalDetectorNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "video": (cls.get_video_files,),  # 使用动态获取方法
+                "video": ([""],),  # 初始为空列表
                 "confidence_threshold": ("FLOAT", {
                     "default": 75.0,
                     "min": 0.0,
@@ -60,8 +60,13 @@ class VideoFrontalDetectorNode:
     # 添加 WIDGETS 定义
     @classmethod
     def WIDGETS(cls):
+        """返回带有视频文件列表的widget配置"""
+        video_files = cls.get_video_files()
         return {
-            "video": ("videoplayer", {"format": VIDEO_EXTENSIONS}),
+            "video": ("videoplayer", {
+                "format": VIDEO_EXTENSIONS,
+                "files": video_files  # 在这里传入动态获取的文件列表
+            }),
         }
     
     RETURN_TYPES = ("IMAGE", "INT",)
