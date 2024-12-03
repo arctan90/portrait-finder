@@ -27,10 +27,10 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/arctan90/portrait-finder.git
 ```
 
-4. 安装依赖：
-```bash
-pip install -r portrait-finder/requirements.txt
-```
+4. 插件依赖项（会自动安装）：
+   - opencv-python >= 4.8.0
+   - mediapipe >= 0.10.0
+   - numpy >= 1.24.0
 
 5. 重启 ComfyUI
 
@@ -39,7 +39,7 @@ pip install -r portrait-finder/requirements.txt
 1. 启动 ComfyUI 后，检查节点列表中是否出现"人物正面检测"节点
 2. 如果没有出现，请检查：
    - custom_nodes 目录下是否有 portrait-finder 文件夹
-   - 依赖是否安装成功（可以重新运行 pip install 命令）
+   - ComfyUI 启动日志中是否有依赖安装相关的错误信息
    - ComfyUI 控制台是否有报错信息
 
 ## 使用方法
@@ -88,8 +88,10 @@ pip install -r portrait-finder/requirements.txt
    - 验证文件访问权限
 
 2. 如果遇到依赖相关错误：
+   - 检查 Python 环境是否有写入权限
+   - 尝试手动安装依赖：
 ```bash
-pip install --upgrade opencv-python mediapipe numpy
+pip install opencv-python>=4.8.0 mediapipe>=0.10.0 numpy>=1.24.0
 ```
 
 ## 更新说明
@@ -105,10 +107,7 @@ cd ComfyUI/custom_nodes/portrait-finder
 git pull
 ```
 
-3. 更新依赖：
-```bash
-pip install -r requirements.txt --upgrade
-```
+3. 依赖项会在 ComfyUI 重启时自动更新
 
 4. 重启 ComfyUI
 
