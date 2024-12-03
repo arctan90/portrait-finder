@@ -19,10 +19,16 @@ class VideoFrontalDetectorNode:
             static_image_mode=True,
             min_detection_confidence=0.5
         )
-        self.face_detection = self.mp_face.FaceDetection(
-            min_detection_confidence=0.3,
-            model_selection=1
-        )
+        try:
+            # 首先尝试使用默认配置
+            self.face_detection = self.mp_face.FaceDetection()
+        except Exception as e:
+            print(f"警告：使用默认人脸检测配置失败，尝试备用配置: {str(e)}")
+            # 如果失败，使用最基本的配置
+            self.face_detection = self.mp_face.FaceDetection(
+                min_detection_confidence=0.3,
+                model_selection=0
+            )
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -358,7 +364,7 @@ class VideoFrontalDetectorNode:
             print(f"  宽高比得分: {best_face_scores['ratio_score']*100:.2f}%")
             print(f"  人脸大小得分: {best_face_scores['face_size_score']*100:.2f}%")
             print(f"  最终人脸得分: {best_face_scores['final_confidence']:.2f}%")
-            # 第二次打开视频：直接读取目标帧
+            # 第二次打开视：直接读取目标帧
             print(f"正在提取第 {target_frame_index} 帧...")
             cap = cv2.VideoCapture(video_path)
             current_frame = 0
