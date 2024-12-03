@@ -2,12 +2,16 @@
 
 一个 ComfyUI 插件，可以从视频中智能检测并提取最佳人物正面肖像帧。
 
+![版本](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![许可证](https://img.shields.io/badge/license-MIT-green.svg)
+
 ## 功能特点
 
 - 智能识别最佳人物正面肖像
 - 自动检测人物正面姿态
 - 可调节检测置信度阈值
 - 支持常见视频格式
+- 动态视频文件列表刷新
 
 ## 安装步骤
 
@@ -43,35 +47,38 @@ pip install -r portrait-finder/requirements.txt
 1. 启动 ComfyUI
 2. 在节点列表中找到 "人物正面检测"
 3. 设置参数：
-   - video: 上传视频文件
-   - video_file: 选择 input 目录中的视频文件
-   - use_uploaded_video: 选择使用上传的视频还是已有视频文件
-   - confidence_threshold: 置信度阈值（0-100，默认80）
+   - video: 选择视频文件（支持动态刷新）
+   - confidence_threshold: 置信度阈值 （默认75）
+   - frame_skip: 帧跳过数 （默认1）
+   - test_first_frame: 测试按钮，检查是否能读取第一帧，使用中请关闭 （默认False）
 
-## 视频输入方式
+## 视频输入说明
 
-支持两种视频输入方式：
-1. 直接上传视频文件
-2. 从 ComfyUI 的 input 目录选择视频文件（支持 mp4, avi, mov, mkv 格式）
+- 支持从 ComfyUI 的 input 目录选择视频文件
+- 支持格式：mp4, avi, mov, mkv, webm
+- 视频列表支持动态刷新，新上传的视频文件会自动显示在选项中
 
 ## 参数说明
 
 | 参数名 | 类型 | 说明 | 默认值 | 范围 |
 |--------|------|------|--------|------|
-| video | VIDEO | 上传视频文件 | - | - |
-| video_file | VIDEO | 选择 input 目录中的视频文件 | - | - |
-| use_uploaded_video | BOOLEAN | 选择使用上传的视频还是已有视频文件 | True | - |
-| confidence_threshold | FLOAT | 检测置信度阈值 | 80.0 | 0-100 |
+| video | VIDEO | 选择视频文件 | - | 支持动态刷新 |
+| confidence_threshold | FLOAT | 检测置信度阈值 | 75.0 | 0-100 |
+| frame_skip | INT | 处理时跳过的帧数 | 1 | 1-100 |
+| test_first_frame | BOOLEAN | 是否仅测试第一帧 | False | - |
 
 ## 输出
 
 - IMAGE: 检测到的最佳正面帧
+- INT: 选中帧的索引号
 
 ## 注意事项
 
 1. 确保视频文件路径正确且可访问
-2. 视频文件支持常见格式（mp4, avi, mov等）
+2. 视频文件支持常见格式（mp4, avi, mov, mkv, webm）
 3. 处理大文件时可能需要一定时间
+4. frame_skip 参数可以加快处理速度，但可能会错过最佳帧
+5. 如果没有找到满足阈值的帧，会输出整个视频中得分最高的帧
 
 ## 故障排除
 
@@ -80,11 +87,7 @@ pip install -r portrait-finder/requirements.txt
    - 确认视频格式是否支持
    - 验证文件访问权限
 
-2. 如果提示 "未能找到符合条件的帧"：
-   - 尝试降低 confidence_threshold 值
-   - 确认视频中是否包含正面人物画面
-
-3. 如果遇到依赖相关错误：
+2. 如果遇到依赖相关错误：
 ```bash
 pip install --upgrade opencv-python mediapipe numpy
 ```
