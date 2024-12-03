@@ -1,5 +1,5 @@
-+ __version__ = "1.0.0"
-+ 
+__version__ = "1.0.0"
+
 import cv2
 import mediapipe as mp
 import numpy as np
