@@ -24,7 +24,30 @@ class VideoFrontalDetectorNode:
     
     @classmethod
     def INPUT_TYPES(cls):
-        # 获取 input 目录中的视频文件
+        return {
+            "required": {
+                "video": (cls.get_video_files,),  # 使用动态获取方法
+                "confidence_threshold": ("FLOAT", {
+                    "default": 75.0,
+                    "min": 0.0,
+                    "max": 100.0,
+                    "step": 0.1
+                }),
+                "frame_skip": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 100,
+                    "step": 1
+                }),
+                "test_first_frame": ("BOOLEAN", {
+                    "default": False,
+                }),
+            },
+        }
+    
+    @classmethod
+    def get_video_files(cls):
+        """动态获取视频文件列表"""
         input_dir = folder_paths.get_input_directory()
         video_files = []
         for f in os.listdir(input_dir):
@@ -32,27 +55,7 @@ class VideoFrontalDetectorNode:
                 ext = f.split('.')[-1].lower()
                 if ext in VIDEO_EXTENSIONS:
                     video_files.append(f)
-                    
-        return {
-            "required": {
-                "video": (sorted(video_files),),  # 从 input 目录选择视频
-                "confidence_threshold": ("FLOAT", {
-                    "default": 75.0,
-                    "min": 0.0,
-                    "max": 100.0,
-                    "step": 0.1
-                }),
-                "frame_skip": ("INT", {  # 添加帧跳过选项
-                    "default": 1,
-                    "min": 1,
-                    "max": 100,
-                    "step": 1
-                }),
-                "test_first_frame": ("BOOLEAN", {  # 添加测试开关
-                    "default": False,
-                }),
-            },
-        }
+        return sorted(video_files)
     
     # 添加 WIDGETS 定义
     @classmethod
