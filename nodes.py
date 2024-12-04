@@ -157,6 +157,17 @@ class VideoFrontalDetectorNode:
         vertical_score = (1.0 - abs((left_shoulder.y + right_shoulder.y)/2 - 
                                    (left_hip.y + right_hip.y)/2)) * 100  # 垂直站姿得分
         
+        # 在计算最终得分之前，先检查关键得分是否达标
+        if shoulder_score < 85.0 and horizontal_score < 85.0:
+            print(f"      肩膀对齐得分({shoulder_score:.2f}%)和水平对齐得分({horizontal_score:.2f}%)均未达到85%阈值")
+            return 0.0, {
+                'shoulder_score': shoulder_score,
+                'horizontal_score': horizontal_score,
+                'vertical_score': vertical_score,
+                'arms_score': arms_score,
+                'final_confidence': 0.0
+            }
+        
         # 设置基础权重，大幅增加水平对齐的权重
         arms_weight = 0.05        # 手臂位置权重5%
         shoulder_weight = 0.15    # 肩膀平行度权重15%
